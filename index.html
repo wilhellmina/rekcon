@@ -1,0 +1,803 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Reckon">
+<meta name="format-detection" content="telephone=no">
+<title>Reckon</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f2f3f5;
+    --panel: #ffffff;
+    --text: #111418;
+    --muted: #5b6470;
+    --line: #d8dce2;
+    --accent: #0a5fd1;
+    --on-accent: #ffffff;
+    --ok: #13803b;
+    --warn: #a85a00;
+    --bad: #c62828;
+    --mono-bg: #eef0f3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1013;
+      --panel: #181b20;
+      --text: #eef1f5;
+      --muted: #9aa4b1;
+      --line: #2c313a;
+      --accent: #4a92ff;
+      --on-accent: #06101f;
+      --ok: #4cc574;
+      --warn: #f0a443;
+      --bad: #ff6b6b;
+      --mono-bg: #121519;
+    }
+  }
+  [hidden] { display: none !important; }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
+  }
+  main {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: calc(12px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+             calc(40px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  }
+  h1 { font-size: 20px; margin: 0 0 12px; }
+  h1 small { font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 6px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .step { font-size: 13px; color: var(--muted); }
+  .prompt { font-size: 26px; font-weight: 700; line-height: 1.3; margin: 2px 0 4px; }
+  .sub { color: var(--muted); min-height: 1.5em; }
+  .sub.warn { color: var(--warn); }
+  .bar { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; margin-top: 12px; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--accent); }
+  .live { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin-top: 14px; }
+  .live span { display: block; font-size: 12px; color: var(--muted); }
+  .live b { font-size: 20px; font-variant-numeric: tabular-nums; }
+  .actions { display: flex; gap: 10px; margin: 14px 0; }
+  .actions button { flex: 1; }
+  button {
+    font: inherit;
+    font-weight: 600;
+    min-height: 52px;
+    padding: 0 18px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--text);
+    touch-action: manipulation;
+  }
+  button.primary { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+  button:disabled { opacity: .5; }
+  .label { font-size: 13px; color: var(--muted); }
+  .big { font-size: 44px; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .result table { width: 100%; border-collapse: collapse; margin-top: 12px; font-variant-numeric: tabular-nums; }
+  .result th { text-align: left; font-weight: 400; color: var(--muted); padding: 6px 10px 6px 0; white-space: nowrap; vertical-align: top; }
+  .result td { padding: 6px 0; }
+  .result tr + tr > * { border-top: 1px solid var(--line); }
+  .result .notes p { margin: 10px 0 0; }
+  .ok { color: var(--ok); }
+  .warn { color: var(--warn); }
+  .bad { color: var(--bad); }
+  details.card { padding: 0; margin-top: 12px; }
+  summary { padding: 14px 16px; font-weight: 600; cursor: pointer; }
+  .inner { padding: 0 16px 16px; }
+  .form label { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+  .form label > span:last-child { white-space: nowrap; }
+  .form input {
+    font: inherit;
+    width: 5.5em;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    text-align: right;
+  }
+  .form .unit { color: var(--muted); font-size: 14px; }
+  .form .note { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+  .form button { margin-top: 8px; width: 100%; }
+  pre.dbg {
+    font: 12px/1.45 ui-monospace, Menlo, monospace;
+    background: var(--mono-bg);
+    padding: 10px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 0 0 10px;
+  }
+  .log { font: 12px/1.45 ui-monospace, Menlo, monospace; max-height: 16em; overflow-y: auto; margin-bottom: 10px; overflow-wrap: anywhere; }
+  .inner > button { width: 100%; }
+  ol.help { padding-left: 1.3em; margin: 0; }
+  ol.help li + li { margin-top: 6px; }
+  @keyframes flash { from { background: var(--ok); } }
+  .flash { animation: flash .6s ease-out; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Reckon<small>アライメント測定(お試し版)</small></h1>
+
+  <section class="card" id="statusBox">
+    <div class="step" id="step">準備</div>
+    <div class="prompt" id="prompt">「センサー開始」を押してください</div>
+    <div class="sub" id="sub">iPhone の Safari で、HTTPS で開いてください。</div>
+    <div class="bar" id="bar" hidden><i id="barFill"></i></div>
+    <div class="live" id="live" hidden>
+      <div><span>回転の速さ</span><b id="liveRate">–</b></div>
+      <div><span>キャンバー(今)</span><b id="liveCam">–</b></div>
+      <div><span>移動時間</span><b id="liveTravel">–</b></div>
+      <div><span>トータルトー(今)</span><b id="liveToe">–</b></div>
+    </div>
+  </section>
+
+  <div class="actions">
+    <button class="primary" id="btnStart">センサー開始</button>
+    <button id="btnReset" hidden>左からやり直す</button>
+    <button class="primary" id="btnAgain" hidden>もう一度測る</button>
+  </div>
+
+  <section class="card result" id="result" hidden>
+    <div class="label">トータルトー(トーイン正)</div>
+    <div class="big" id="rToe">–</div>
+    <div id="rToeSub"></div>
+    <table>
+      <tr><th>キャンバー 左</th><td id="rCamL"></td></tr>
+      <tr><th>キャンバー 右</th><td id="rCamR"></td></tr>
+      <tr><th>移動時間</th><td id="rTravel"></td></tr>
+      <tr><th>ばらつき 左</th><td id="rSdL"></td></tr>
+      <tr><th>ばらつき 右</th><td id="rSdR"></td></tr>
+      <tr><th>向き ψ 左 / 右</th><td id="rPsi"></td></tr>
+    </table>
+    <div class="notes" id="rNotes"></div>
+  </section>
+
+  <details class="card" id="settingsBox">
+    <summary>設定</summary>
+    <div class="inner form">
+      <p class="note">変えた値はこの端末に保存されます。</p>
+      <label><span>静止とみなす回転の速さ</span>
+        <span><input id="setStillThr" type="number" inputmode="decimal" step="0.1"> <span class="unit">°/s 以下</span></span></label>
+      <label><span>静止を続ける時間</span>
+        <span><input id="setStillSec" type="number" inputmode="decimal" step="0.1"> <span class="unit">秒</span></span></label>
+      <label><span>移動時間の警告</span>
+        <span><input id="setTravelWarn" type="number" inputmode="decimal" step="1"> <span class="unit">秒</span></span></label>
+      <label><span>垂直からの傾きの許容</span>
+        <span><input id="setMaxTilt" type="number" inputmode="decimal" step="1"> <span class="unit">°</span></span></label>
+      <label><span>リム径(空欄なら mm 換算なし)</span>
+        <span><input id="setRim" type="number" inputmode="decimal" step="0.5"> <span class="unit">インチ</span></span></label>
+      <button id="btnDefaults">初期値に戻す</button>
+    </div>
+  </details>
+
+  <details class="card" id="debugBox" open>
+    <summary>デバッグ</summary>
+    <div class="inner">
+      <pre class="dbg" id="dbg"></pre>
+      <div class="log" id="log"></div>
+      <button id="btnCopy">表示とログをコピー</button>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>使い方</summary>
+    <div class="inner">
+      <ol class="help">
+        <li>治具(リムの縁に当たる L字や平板)に iPhone を固定します。ケースは外すか、毎回同じ状態にします。</li>
+        <li>「センサー開始」を押して、センサーの使用を許可します。</li>
+        <li>左前輪に iPhone の背面を当て、画面を車の外側に向けます。止めておくとピッと鳴って記録されます。</li>
+        <li>そのまま車の前を回って右前輪へ。背面を当てて止めると、ピピッと鳴って結果が出ます。</li>
+        <li>移動は手早く(目安 15 秒以内)。時間が長いほど、ずれ(ドリフト)が溜まります。</li>
+      </ol>
+    </div>
+  </details>
+</main>
+
+<script>
+'use strict';
+
+const $ = (id) => document.getElementById(id);
+
+// --- math:start ---
+const DEG = Math.PI / 180;
+
+/** (−180°, 180°] に正規化する */
+function wrap180(d) {
+  const x = ((d + 180) % 360 + 360) % 360 - 180;
+  return x === -180 ? 180 : x;
+}
+
+/**
+ * 画面の法線(デバイスの z 軸。画面側が正)の世界座標。世界座標は z が上。
+ * W3C の Z-X'-Y'' 順の回転行列 R = Rz(α)·Rx(β)·Ry(γ) の3列目。
+ * オイラー角は縦にしたとき(β≈90°)ジンバルロック付近になるので、向きには必ずこのベクトルを使う。
+ */
+function normalFromEuler(alpha, beta, gamma) {
+  const a = alpha * DEG, b = beta * DEG, g = gamma * DEG;
+  const sA = Math.sin(a), cA = Math.cos(a);
+  const sB = Math.sin(b), cB = Math.cos(b);
+  const sG = Math.sin(g), cG = Math.cos(g);
+  return [cG * sA * sB + cA * sG, sA * sG - cA * cG * sB, cB * cG];
+}
+
+/** 水平方向の向き ψ(上から見て反時計回り、度) */
+function headingOf(n) {
+  return Math.atan2(n[1], n[0]) / DEG;
+}
+
+/** キャンバー(ネガ=負、度)。左右とも同じ式 */
+function camberOf(n) {
+  return -Math.asin(Math.max(-1, Math.min(1, n[2]))) / DEG;
+}
+
+/**
+ * トータルトー(トーイン正、度)。
+ * 差を先に正規化すると、トーアウトのとき ψL − ψR が 180° を超えて −180° 側へ折り返し、
+ * 結果が 360° 近くへ飛ぶ。なので最後に正規化する。
+ */
+function totalToe(psiL, psiR) {
+  return wrap180(180 - (psiL - psiR));
+}
+
+/** 角度ではなくベクトルを足してから正規化した平均 */
+function meanNormal(ns) {
+  let x = 0, y = 0, z = 0;
+  for (const n of ns) { x += n[0]; y += n[1]; z += n[2]; }
+  const len = Math.hypot(x, y, z);
+  return len > 0 ? [x / len, y / len, z / len] : null;
+}
+
+function stdev(xs) {
+  if (xs.length < 2) return 0;
+  const m = xs.reduce((s, x) => s + x, 0) / xs.length;
+  return Math.sqrt(xs.reduce((s, x) => s + (x - m) ** 2, 0) / (xs.length - 1));
+}
+
+/** 平均の向きからのずれの標準偏差(度)。水平(ψ)と縦(キャンバー)に分ける */
+function spreadOf(ns, mean) {
+  const psi0 = headingOf(mean), cam0 = camberOf(mean);
+  return {
+    psi: stdev(ns.map((n) => wrap180(headingOf(n) - psi0))),
+    cam: stdev(ns.map((n) => camberOf(n) - cam0)),
+  };
+}
+// --- math:end ---
+
+// ---- 表示の書式 ----
+const MINUS = '−';
+function signed(x, digits) {
+  const s = Math.abs(x).toFixed(digits);
+  if (Number(s) === 0) return '±' + s;
+  return (x < 0 ? MINUS : '+') + s;
+}
+const fmtDeg = (d, digits = 2) => signed(d, digits) + '°';
+const fmtMin = (d) => signed(d * 60, 1) + '′';
+const fmtMm = (mm) => signed(mm, 1) + ' mm';
+
+// ---- ログ(iPhone ではコンソールが見られないので、画面のデバッグパネルに出す) ----
+const T0 = performance.now();
+const logLines = [];
+
+function log(msg, level = 'info') {
+  logLines.unshift({ t: ((performance.now() - T0) / 1000).toFixed(1), msg, level });
+  if (logLines.length > 100) logLines.pop();
+  const el = $('log');
+  el.replaceChildren(...logLines.map((l) => {
+    const d = document.createElement('div');
+    if (l.level !== 'info') d.className = l.level;
+    d.textContent = `[${l.t}s] ${l.msg}`;
+    return d;
+  }));
+}
+
+window.addEventListener('error', (e) => log(`エラー: ${e.message} (${e.lineno}:${e.colno})`, 'bad'));
+window.addEventListener('unhandledrejection', (e) => {
+  const r = e.reason;
+  log('エラー(Promise): ' + (r && r.message ? r.message : String(r)), 'bad');
+});
+
+// ---- 設定 ----
+const SETTINGS_KEY = 'reckon.settings.v1';
+const DEFAULTS = { stillThr: 0.5, stillSec: 1.5, travelWarn: 15, maxTilt: 15, rimInch: null };
+const LIMITS = { stillThr: [0.05, 10], stillSec: [0.3, 8], travelWarn: [1, 300], maxTilt: [1, 45], rimInch: [8, 30] };
+const SETTING_INPUTS = { stillThr: 'setStillThr', stillSec: 'setStillSec', travelWarn: 'setTravelWarn', maxTilt: 'setMaxTilt', rimInch: 'setRim' };
+
+const inRange = (k, v) => typeof v === 'number' && Number.isFinite(v) && v >= LIMITS[k][0] && v <= LIMITS[k][1];
+
+function loadSettings() {
+  const s = { ...DEFAULTS };
+  try {
+    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+    for (const k of Object.keys(DEFAULTS)) {
+      if (inRange(k, saved[k])) s[k] = saved[k];
+    }
+  } catch (e) {
+    // 読めなければ初期値のまま
+  }
+  return s;
+}
+
+function saveSettings() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch (e) {
+    log('設定を保存できませんでした: ' + e.message, 'warn');
+  }
+}
+
+let settings = loadSettings();
+
+function fillSettingInputs() {
+  for (const [k, id] of Object.entries(SETTING_INPUTS)) {
+    $(id).value = settings[k] === null ? '' : String(settings[k]);
+    $(id).min = LIMITS[k][0];
+    $(id).max = LIMITS[k][1];
+  }
+}
+
+for (const [k, id] of Object.entries(SETTING_INPUTS)) {
+  $(id).addEventListener('change', () => {
+    const raw = $(id).value.trim();
+    if (k === 'rimInch' && raw === '') {
+      settings.rimInch = null;
+    } else {
+      const v = parseFloat(raw);
+      if (inRange(k, v)) {
+        settings[k] = v;
+      } else {
+        log(`設定の値が範囲外です(${LIMITS[k][0]}〜${LIMITS[k][1]})`, 'warn');
+      }
+    }
+    fillSettingInputs();
+    saveSettings();
+    renderResult();
+  });
+}
+
+$('btnDefaults').addEventListener('click', () => {
+  settings = { ...DEFAULTS };
+  fillSettingInputs();
+  saveSettings();
+  renderResult();
+});
+
+// ---- 合図(音と画面の点滅。iOS では振動 API が使えない) ----
+let audioCtx = null;
+
+/** タップの処理の中で呼ぶ(iOS ではタップ起点でないと音が出せない) */
+function initAudio() {
+  try {
+    // 消音スイッチが入っていても鳴らす(Safari 16.4 以降)
+    if (navigator.audioSession) navigator.audioSession.type = 'playback';
+  } catch (e) {
+    log('audioSession を設定できませんでした: ' + e.message, 'warn');
+  }
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) {
+      log('WebAudio が使えないので、音は鳴りません', 'warn');
+      return;
+    }
+    if (!audioCtx) audioCtx = new AC();
+    audioCtx.resume().catch((e) => log('音の準備に失敗: ' + e.message, 'warn'));
+  } catch (e) {
+    log('音の準備に失敗: ' + e.message, 'warn');
+  }
+}
+
+function beep(freq, delay = 0, dur = 0.15) {
+  if (!audioCtx) return;
+  const t0 = audioCtx.currentTime + delay;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.exponentialRampToValueAtTime(0.6, t0 + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.02);
+}
+
+function signal(times) {
+  if (audioCtx && audioCtx.state !== 'running') audioCtx.resume().catch(() => {});
+  for (let i = 0; i < times; i++) beep(1046, i * 0.2);
+  const box = $('statusBox');
+  box.classList.remove('flash');
+  void box.offsetWidth; // アニメーションをやり直させる
+  box.classList.add('flash');
+}
+
+// ---- 画面を点けたままにする ----
+async function keepAwake() {
+  if (!('wakeLock' in navigator)) {
+    log('画面の自動ロックを止められません(Wake Lock 非対応)。自動ロックを長めにしてください', 'warn');
+    return;
+  }
+  try {
+    await navigator.wakeLock.request('screen');
+  } catch (e) {
+    log('画面を点けたままにできませんでした: ' + e.message, 'warn');
+  }
+}
+
+// ---- センサー ----
+const sensor = {
+  on: false,
+  ori: null,          // 最後の deviceorientation の生値
+  n: null,            // 最後の法線
+  buf: [],            // 直近の { t, n }
+  rate: null,         // 最後の rotationRate の生値(°/s)
+  rateMag: null,
+  interval: null,
+  stillSince: null,   // 静止が始まった時刻(静止していなければ null)
+  nulls: { ori: 0, mot: 0 },
+  total: { ori: 0, mot: 0 },
+  win: { ori: 0, mot: 0 },
+  hz: { ori: 0, mot: 0 },
+  hzT: performance.now(),
+  res: { alpha: Infinity, beta: Infinity, gamma: Infinity }, // 続く値の差のうち 0 でない最小(分解能の目安)
+};
+
+function onOrientation(e) {
+  if (e.alpha == null || e.beta == null || e.gamma == null) {
+    sensor.nulls.ori++;
+    return;
+  }
+  const t = performance.now();
+  const prev = sensor.ori;
+  if (prev) {
+    for (const k of ['alpha', 'beta', 'gamma']) {
+      const d = Math.abs(e[k] - prev[k]);
+      if (d > 0 && d < sensor.res[k]) sensor.res[k] = d;
+    }
+  }
+  sensor.ori = { alpha: e.alpha, beta: e.beta, gamma: e.gamma, absolute: e.absolute };
+  sensor.n = normalFromEuler(e.alpha, e.beta, e.gamma);
+  sensor.total.ori++;
+  sensor.win.ori++;
+  sensor.buf.push({ t, n: sensor.n });
+  const keep = Math.max(10, settings.stillSec + 3) * 1000;
+  while (sensor.buf.length && sensor.buf[0].t < t - keep) sensor.buf.shift();
+}
+
+function onMotion(e) {
+  const r = e.rotationRate;
+  if (!r || r.alpha == null || r.beta == null || r.gamma == null) {
+    sensor.nulls.mot++;
+    return;
+  }
+  const t = performance.now();
+  sensor.rate = { alpha: r.alpha, beta: r.beta, gamma: r.gamma };
+  sensor.rateMag = Math.hypot(r.alpha, r.beta, r.gamma);
+  sensor.interval = e.interval;
+  sensor.total.mot++;
+  sensor.win.mot++;
+  if (sensor.rateMag <= settings.stillThr) {
+    if (sensor.stillSince === null) sensor.stillSince = t;
+  } else {
+    sensor.stillSince = null;
+  }
+  tryCapture(t);
+}
+
+async function startSensors() {
+  $('btnStart').disabled = true;
+  initAudio();
+  if (!window.isSecureContext) log('HTTPS で開いていないので、センサーが使えないかもしれません', 'bad');
+
+  const DOE = window.DeviceOrientationEvent;
+  const DME = window.DeviceMotionEvent;
+  if (!DOE || !DME) log('このブラウザはセンサーのイベントに対応していません', 'bad');
+
+  // 2つともタップの処理の中で同時に呼ぶ(await を挟むとタップ起点でなくなる)
+  const ask = (C) => (C && typeof C.requestPermission === 'function' ? C.requestPermission() : Promise.resolve('不要'));
+  const [o, m] = await Promise.allSettled([ask(DOE), ask(DME)]);
+  const desc = (r) => (r.status === 'fulfilled' ? r.value : '失敗 ' + (r.reason && r.reason.message ? r.reason.message : r.reason));
+  log(`センサーの許可: 向き=${desc(o)} / 動き=${desc(m)}`);
+  const ok = (r) => r.status === 'fulfilled' && (r.value === 'granted' || r.value === '不要');
+  if (!ok(o) || !ok(m)) {
+    $('sub').textContent = 'センサーの使用が許可されませんでした。タブを閉じて開き直してから、もう一度「センサー開始」を押してください。';
+    $('sub').className = 'sub warn';
+    $('btnStart').disabled = false;
+    return;
+  }
+
+  window.addEventListener('deviceorientation', onOrientation);
+  window.addEventListener('devicemotion', onMotion);
+  sensor.on = true;
+  keepAwake();
+  setState('waitL');
+
+  setTimeout(() => {
+    if (sensor.total.ori === 0) log('向き(deviceorientation)の値が届きません', 'bad');
+    if (sensor.total.mot === 0) log('動き(devicemotion)の値が届きません。静止を判定できません', 'bad');
+  }, 2000);
+}
+
+// ---- 測定の流れ ----
+// idle → waitL(左前輪で静止を待つ)→ waitR(右前輪で静止を待つ)→ done
+const FACING_TOL = 45; // 右前輪は左前輪のほぼ反対を向くはず。この角度より外れていたら記録しない
+
+let state = 'idle';
+let guard = ''; // 静止しているのに記録しない理由
+const measure = { L: null, R: null, result: null, prevR: null, interrupted: false };
+
+function setState(s) {
+  if (s === 'waitL') {
+    if (measure.R) measure.prevR = measure.R;
+    measure.L = measure.R = measure.result = null;
+    measure.interrupted = false;
+  }
+  state = s;
+  sensor.stillSince = null;
+  guard = '';
+  renderStatic();
+  renderResult();
+}
+
+/**
+ * 今の輪を記録してよい向きでなければ、移動の案内を返す。
+ * 右前輪は左前輪のほぼ反対を向く。2回目以降の左前輪は、前回の右前輪の向きのままなら押し間違い。
+ */
+function facingProblem(n) {
+  const psi = headingOf(n);
+  if (state === 'waitL' && measure.prevR && Math.abs(wrap180(psi - measure.prevR.psi)) < FACING_TOL) {
+    return 'まだ右前輪の向きです。左前輪へ移動してください';
+  }
+  if (state === 'waitR' && Math.abs(wrap180(psi - measure.L.psi - 180)) > FACING_TOL) {
+    return '左前輪を記録しました。車の前を回ってください';
+  }
+  return '';
+}
+
+function tryCapture(t) {
+  guard = '';
+  if (state !== 'waitL' && state !== 'waitR') return;
+  if (sensor.stillSince === null || t - sensor.stillSince < settings.stillSec * 1000) return;
+
+  const samples = sensor.buf.filter((s) => s.t >= sensor.stillSince);
+  if (samples.length < 5) {
+    guard = '向きの値が足りません';
+    return;
+  }
+  const ns = samples.map((s) => s.n);
+  const mean = meanNormal(ns);
+  if (!mean) return;
+  const cam = camberOf(mean);
+  const psi = headingOf(mean);
+
+  if (facingProblem(mean)) {
+    // 止まっているのに記録しないときは、ずれの大きさも出す(ドリフトで外れたときの手がかり)
+    guard = state === 'waitR'
+      ? `右前輪の向きではありません(左前輪の反対から ${Math.abs(wrap180(psi - measure.L.psi - 180)).toFixed(0)}° ずれ)`
+      : facingProblem(mean);
+    return;
+  }
+  if (Math.abs(cam) > settings.maxTilt) {
+    guard = `垂直から ${Math.abs(cam).toFixed(0)}° 傾いています(許容 ${settings.maxTilt}°)`;
+    return;
+  }
+
+  const sp = spreadOf(ns, mean);
+  const cap = { t, n: mean, psi, camber: cam, sdPsi: sp.psi, sdCam: sp.cam, count: samples.length };
+  const desc = `ψ=${psi.toFixed(3)}° キャンバー=${cam.toFixed(3)}° σ水平=${(sp.psi * 60).toFixed(2)}′ σ縦=${(sp.cam * 60).toFixed(2)}′ (${samples.length}個)`;
+  if (state === 'waitL') {
+    measure.L = cap;
+    log('左を記録: ' + desc);
+    signal(1);
+    setState('waitR');
+  } else {
+    measure.R = cap;
+    const L = measure.L;
+    measure.result = { toe: totalToe(L.psi, cap.psi), camL: L.camber, camR: cap.camber, travel: (cap.t - L.t) / 1000 };
+    log('右を記録: ' + desc);
+    log(`結果: トータルトー=${measure.result.toe.toFixed(3)}° 移動=${measure.result.travel.toFixed(1)}秒`);
+    signal(2);
+    setState('done');
+  }
+}
+
+$('btnStart').addEventListener('click', startSensors);
+$('btnReset').addEventListener('click', () => {
+  log('左からやり直し');
+  setState('waitL');
+});
+$('btnAgain').addEventListener('click', () => setState('waitL'));
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    if (state === 'waitR') measure.interrupted = true;
+    log('画面が隠れました', state === 'waitR' ? 'warn' : 'info');
+  } else if (sensor.on) {
+    keepAwake();
+  }
+});
+
+// ---- 描画 ----
+const STEPS = {
+  idle: ['準備', '「センサー開始」を押してください'],
+  waitL: ['1 / 2 左前輪', '左前輪に当ててください'],
+  waitR: ['2 / 2 右前輪', '右前輪へ移動して当ててください'],
+  done: ['結果', '測定できました'],
+};
+
+function setText(id, text, cls) {
+  const el = $(id);
+  if (el.textContent !== text) el.textContent = text;
+  if (cls !== undefined && el.className !== cls) el.className = cls;
+}
+
+function renderStatic() {
+  setText('step', STEPS[state][0]);
+  setText('prompt', STEPS[state][1]);
+  $('btnStart').hidden = state !== 'idle';
+  $('btnReset').hidden = state !== 'waitR';
+  $('btnAgain').hidden = state !== 'done';
+  $('bar').hidden = state === 'idle';
+  $('live').hidden = state === 'idle';
+}
+
+function renderLive(t) {
+  if (state === 'idle') return;
+  const waiting = state === 'waitL' || state === 'waitR';
+  const still = sensor.stillSince !== null ? Math.max(0, (t - sensor.stillSince) / 1000) : 0;
+  const n = sensor.n;
+  const r = measure.result;
+  const facing = waiting && n ? facingProblem(n) : '';
+
+  let progress = facing ? 0 : Math.min(1, still / settings.stillSec);
+  if (state === 'done') progress = 1;
+  $('barFill').style.width = progress * 100 + '%';
+
+  let sub;
+  if (waiting && sensor.total.ori === 0) {
+    sub = 'センサーの値を待っています…';
+  } else if (waiting && guard) {
+    sub = guard;
+  } else if (facing) {
+    sub = facing;
+  } else if (waiting && still > 0) {
+    sub = `静止 ${still.toFixed(1)} / ${settings.stillSec} 秒`;
+  } else if (state === 'waitL') {
+    sub = '背面を当て、画面を外に向けて止めてください';
+  } else if (state === 'waitR') {
+    sub = '背面を当て、画面を外に向けて止めてください';
+  } else {
+    sub = '次を測るときは、左前輪に戻ってから「もう一度測る」を押してください';
+  }
+  setText('sub', sub, waiting && guard ? 'sub warn' : 'sub');
+
+  setText('liveRate', sensor.rateMag === null ? '–' : sensor.rateMag.toFixed(2) + ' °/s',
+    sensor.rateMag !== null && sensor.rateMag <= settings.stillThr ? 'ok' : '');
+
+  const cam = n ? camberOf(n) : null;
+  setText('liveCam', cam === null ? '–' : fmtDeg(cam, 1), cam !== null && Math.abs(cam) > settings.maxTilt ? 'warn' : '');
+
+  let travel = null;
+  if (state === 'waitR') travel = (t - measure.L.t) / 1000;
+  if (state === 'done') travel = r.travel;
+  setText('liveTravel', travel === null ? '–' : travel.toFixed(1) + ' 秒', travel !== null && travel > settings.travelWarn ? 'bad' : '');
+
+  let toe = '–';
+  if (state === 'waitR' && n && !facing) {
+    toe = fmtDeg(totalToe(measure.L.psi, headingOf(n)), 2);
+  } else if (state === 'done') {
+    toe = fmtDeg(r.toe, 2);
+  }
+  setText('liveToe', toe);
+}
+
+function renderResult() {
+  const r = measure.result;
+  $('result').hidden = !r;
+  if (!r) return;
+  const { L, R } = measure;
+
+  setText('rToe', fmtDeg(r.toe, 2));
+  const parts = [fmtMin(r.toe), r.toe >= 0 ? 'トーイン' : 'トーアウト'];
+  if (settings.rimInch !== null) {
+    parts.push(`${fmtMm(settings.rimInch * 25.4 * Math.tan(r.toe * DEG))}(リム ${settings.rimInch} インチ)`);
+  }
+  setText('rToeSub', parts.join(' ・ '));
+  setText('rCamL', `${fmtDeg(r.camL)}(${fmtMin(r.camL)})`);
+  setText('rCamR', `${fmtDeg(r.camR)}(${fmtMin(r.camR)})`);
+  setText('rTravel', r.travel.toFixed(1) + ' 秒', r.travel > settings.travelWarn ? 'bad' : '');
+  const sd = (c) => `水平 ${(c.sdPsi * 60).toFixed(2)}′ ・ 縦 ${(c.sdCam * 60).toFixed(2)}′(${c.count} 個)`;
+  setText('rSdL', sd(L));
+  setText('rSdR', sd(R));
+  setText('rPsi', `${L.psi.toFixed(2)}° / ${R.psi.toFixed(2)}°`);
+
+  const notes = [];
+  if (r.travel > settings.travelWarn) {
+    notes.push(`移動に ${r.travel.toFixed(1)} 秒かかりました(目安 ${settings.travelWarn} 秒以内)。ドリフトが溜まっているかもしれません。`);
+  }
+  if (measure.interrupted) {
+    notes.push('移動中に画面が隠れました。その間の回転を追えていないかもしれません。');
+  }
+  $('rNotes').replaceChildren(...notes.map((s) => {
+    const p = document.createElement('p');
+    p.className = 'warn';
+    p.textContent = s;
+    return p;
+  }));
+}
+
+function renderDebug(t) {
+  const dt = (t - sensor.hzT) / 1000;
+  if (dt >= 1) {
+    sensor.hz.ori = sensor.win.ori / dt;
+    sensor.hz.mot = sensor.win.mot / dt;
+    sensor.win.ori = sensor.win.mot = 0;
+    sensor.hzT = t;
+  }
+  const raw = (x) => (x === null || x === undefined ? '–' : String(x));
+  const fix = (x, d) => (x === null || x === undefined ? '–' : x.toFixed(d));
+  const res = (x) => (x === Infinity ? '–' : x.toPrecision(3));
+  const hasReq = (C) => (C && typeof C.requestPermission === 'function' ? 'あり' : 'なし');
+  const o = sensor.ori;
+  const r = sensor.rate;
+  const n = sensor.n;
+  const still = sensor.stillSince !== null ? ((t - sensor.stillSince) / 1000).toFixed(2) + ' 秒' : '–';
+  const lines = [
+    `状態     ${state}`,
+    `HTTPS    ${window.isSecureContext}  requestPermission 向き=${hasReq(window.DeviceOrientationEvent)} 動き=${hasReq(window.DeviceMotionEvent)}`,
+    `向き     ${sensor.hz.ori.toFixed(1)} Hz  計 ${sensor.total.ori}  null ${sensor.nulls.ori}  absolute=${o ? o.absolute : '–'}`,
+    `  α      ${raw(o && o.alpha)}`,
+    `  β      ${raw(o && o.beta)}`,
+    `  γ      ${raw(o && o.gamma)}`,
+    `  分解能  α ${res(sensor.res.alpha)}  β ${res(sensor.res.beta)}  γ ${res(sensor.res.gamma)}`,
+    `動き     ${sensor.hz.mot.toFixed(1)} Hz  計 ${sensor.total.mot}  null ${sensor.nulls.mot}  interval=${raw(sensor.interval)}`,
+    `  ω      α ${fix(r && r.alpha, 3)}  β ${fix(r && r.beta, 3)}  γ ${fix(r && r.gamma, 3)} °/s`,
+    `  |ω|    ${fix(sensor.rateMag, 3)} °/s(しきい値 ${settings.stillThr})`,
+    `法線 n   ${n ? n.map((v) => v.toFixed(5)).join(', ') : '–'}`,
+    `ψ        ${n ? headingOf(n).toFixed(3) + '°' : '–'}   キャンバー ${n ? camberOf(n).toFixed(3) + '°' : '–'}`,
+    `静止     ${still}  バッファ ${sensor.buf.length} 個`,
+  ];
+  setText('dbg', lines.join('\n'));
+}
+
+$('btnCopy').addEventListener('click', async () => {
+  const text = [
+    $('dbg').textContent,
+    '',
+    ...logLines.map((l) => `[${l.t}s] ${l.msg}`),
+    '',
+    navigator.userAgent,
+  ].join('\n');
+  try {
+    await navigator.clipboard.writeText(text);
+    log('コピーしました');
+  } catch (e) {
+    log('コピーできませんでした: ' + e.message, 'warn');
+  }
+});
+
+// ---- 起動 ----
+fillSettingInputs();
+renderStatic();
+if (!window.isSecureContext) {
+  $('sub').textContent = 'HTTPS で開いていません。センサーは HTTPS でないと使えません。';
+  $('sub').className = 'sub warn';
+}
+let tick = 0;
+setInterval(() => {
+  const t = performance.now();
+  renderLive(t);
+  if (tick++ % 2 === 0) renderDebug(t);
+}, 100);
+renderDebug(performance.now());
+</script>
+</body>
+</html>

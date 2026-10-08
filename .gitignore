@@ -1,0 +1,15 @@
+# Claude Code の個人用のファイル
+/.claude/settings.local.json
+/.claude/worktrees/
+/CLAUDE.local.md
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# エディタ
+.idea/
+.vscode/
+*.sw[a-p]
+*~
