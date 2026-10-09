@@ -143,6 +143,7 @@
   <div class="actions">
     <button class="primary" id="btnStart">センサー開始</button>
     <button id="btnReset" hidden>左からやり直す</button>
+    <button id="btnForceL" hidden>ここが左前輪</button>
     <button class="primary" id="btnAgain" hidden>もう一度測る</button>
   </div>
 
@@ -287,16 +288,18 @@ const fmtMm = (mm) => signed(mm, 1) + ' mm';
 const T0 = performance.now();
 const logLines = [];
 
+const LOG_MAX = 100;
+
 function log(msg, level = 'info') {
-  logLines.unshift({ t: ((performance.now() - T0) / 1000).toFixed(1), msg, level });
-  if (logLines.length > 100) logLines.pop();
+  const line = { t: ((performance.now() - T0) / 1000).toFixed(1), msg, level };
+  logLines.unshift(line);
+  if (logLines.length > LOG_MAX) logLines.pop();
+  const d = document.createElement('div');
+  if (level !== 'info') d.className = level;
+  d.textContent = `[${line.t}s] ${msg}`;
   const el = $('log');
-  el.replaceChildren(...logLines.map((l) => {
-    const d = document.createElement('div');
-    if (l.level !== 'info') d.className = l.level;
-    d.textContent = `[${l.t}s] ${l.msg}`;
-    return d;
-  }));
+  el.prepend(d);
+  while (el.childElementCount > LOG_MAX) el.lastElementChild.remove();
 }
 
 window.addEventListener('error', (e) => log(`エラー: ${e.message} (${e.lineno}:${e.colno})`, 'bad'));
@@ -347,7 +350,10 @@ function fillSettingInputs() {
 for (const [k, id] of Object.entries(SETTING_INPUTS)) {
   $(id).addEventListener('change', () => {
     const raw = $(id).value.trim();
-    if (k === 'rimInch' && raw === '') {
+    if ($(id).validity.badInput) {
+      // 「15,5」のように数として読めない入力は、value が空になる。空欄(リム径を消す)と区別する
+      log('設定の値を数として読めません', 'warn');
+    } else if (k === 'rimInch' && raw === '') {
       settings.rimInch = null;
     } else {
       const v = parseFloat(raw);
@@ -411,7 +417,10 @@ function beep(freq, delay = 0, dur = 0.15) {
 }
 
 function signal(times) {
-  if (audioCtx && audioCtx.state !== 'running') audioCtx.resume().catch(() => {});
+  if (audioCtx && audioCtx.state !== 'running') {
+    const st = audioCtx.state;
+    audioCtx.resume().catch(() => log(`音を鳴らせませんでした(${st})。ボタンを押すと戻ります`, 'warn'));
+  }
   for (let i = 0; i < times; i++) beep(1046, i * 0.2);
   const box = $('statusBox');
   box.classList.remove('flash');
@@ -420,9 +429,13 @@ function signal(times) {
 }
 
 // ---- 画面を点けたままにする ----
+let wakeLockWarned = false;
+
 async function keepAwake() {
   if (!('wakeLock' in navigator)) {
-    log('画面の自動ロックを止められません(Wake Lock 非対応)。自動ロックを長めにしてください', 'warn');
+    // 画面を戻すたびに呼ばれるので、同じ警告は1回だけ
+    if (!wakeLockWarned) log('画面の自動ロックを止められません(Wake Lock 非対応)。自動ロックを長めにしてください', 'warn');
+    wakeLockWarned = true;
     return;
   }
   try {
@@ -442,6 +455,7 @@ const sensor = {
   rateMag: null,
   interval: null,
   stillSince: null,   // 静止が始まった時刻(静止していなければ null)
+  lastMot: null,      // 最後の devicemotion の時刻
   nulls: { ori: 0, mot: 0 },
   total: { ori: 0, mot: 0 },
   win: { ori: 0, mot: 0 },
@@ -484,6 +498,12 @@ function onMotion(e) {
   sensor.interval = e.interval;
   sensor.total.mot++;
   sensor.win.mot++;
+  // 値が途切れていた間に動いたかどうかは分からないので、静止は数え直す
+  if (sensor.lastMot !== null && t - sensor.lastMot > MAX_GAP_MS) {
+    if (sensor.stillSince !== null) log(`動きの値が ${((t - sensor.lastMot) / 1000).toFixed(1)} 秒途切れたので、静止を数え直します`);
+    sensor.stillSince = null;
+  }
+  sensor.lastMot = t;
   if (sensor.rateMag <= settings.stillThr) {
     if (sensor.stillSince === null) sensor.stillSince = t;
   } else {
@@ -494,6 +514,15 @@ function onMotion(e) {
 
 async function startSensors() {
   $('btnStart').disabled = true;
+  try {
+    await startSensorsInner();
+  } catch (e) {
+    log('センサーを始められませんでした: ' + (e && e.message ? e.message : e), 'bad');
+    $('btnStart').disabled = false;
+  }
+}
+
+async function startSensorsInner() {
   initAudio();
   if (!window.isSecureContext) log('HTTPS で開いていないので、センサーが使えないかもしれません', 'bad');
 
@@ -529,37 +558,48 @@ async function startSensors() {
 // ---- 測定の流れ ----
 // idle → waitL(左前輪で静止を待つ)→ waitR(右前輪で静止を待つ)→ done
 const FACING_TOL = 45; // 右前輪は左前輪のほぼ反対を向くはず。この角度より外れていたら記録しない
+const MAX_GAP_MS = 300; // 動きの値がこれより長く途切れたら、静止を数え直す
 
 let state = 'idle';
-let guard = ''; // 静止しているのに記録しない理由
-const measure = { L: null, R: null, result: null, prevR: null, interrupted: false };
+let guard = '';  // 静止しているのに記録しない理由
+let notice = ''; // 左前輪を待つ画面に出すお知らせ(やり直しになった理由など)
+const measure = { L: null, R: null, result: null, prevR: null };
 
 function setState(s) {
   if (s === 'waitL') {
     if (measure.R) measure.prevR = measure.R;
     measure.L = measure.R = measure.result = null;
-    measure.interrupted = false;
   }
   state = s;
   sensor.stillSince = null;
   guard = '';
+  notice = '';
   renderStatic();
   renderResult();
 }
 
 /**
- * 今の輪を記録してよい向きでなければ、移動の案内を返す。
+ * 今の輪を記録してよい向きでなければ、その理由を返す(move は動いている間、still は止まっているのに記録しないときの文言)。
  * 右前輪は左前輪のほぼ反対を向く。2回目以降の左前輪は、前回の右前輪の向きのままなら押し間違い。
  */
 function facingProblem(n) {
   const psi = headingOf(n);
   if (state === 'waitL' && measure.prevR && Math.abs(wrap180(psi - measure.prevR.psi)) < FACING_TOL) {
-    return 'まだ右前輪の向きです。左前輪へ移動してください';
+    const msg = 'まだ右前輪の向きです。左前輪へ移動してください';
+    return { kind: 'prevR', move: msg, still: msg };
   }
-  if (state === 'waitR' && Math.abs(wrap180(psi - measure.L.psi - 180)) > FACING_TOL) {
-    return '左前輪を記録しました。車の前を回ってください';
+  if (state === 'waitR') {
+    const off = Math.abs(wrap180(psi - measure.L.psi - 180));
+    if (off > FACING_TOL) {
+      return {
+        kind: 'notOpposite',
+        move: '左前輪を記録しました。車の前を回ってください',
+        // ずれの大きさは、ドリフトで外れたときの手がかり
+        still: `右前輪の向きではありません(左前輪の反対から ${off.toFixed(0)}° ずれ)`,
+      };
+    }
   }
-  return '';
+  return null;
 }
 
 function tryCapture(t) {
@@ -578,11 +618,9 @@ function tryCapture(t) {
   const cam = camberOf(mean);
   const psi = headingOf(mean);
 
-  if (facingProblem(mean)) {
-    // 止まっているのに記録しないときは、ずれの大きさも出す(ドリフトで外れたときの手がかり)
-    guard = state === 'waitR'
-      ? `右前輪の向きではありません(左前輪の反対から ${Math.abs(wrap180(psi - measure.L.psi - 180)).toFixed(0)}° ずれ)`
-      : facingProblem(mean);
+  const fp = facingProblem(mean);
+  if (fp) {
+    guard = fp.still;
     return;
   }
   if (Math.abs(cam) > settings.maxTilt) {
@@ -609,17 +647,37 @@ function tryCapture(t) {
   }
 }
 
+// ボタンを押したついでに音の準備をし直す(画面のロックなどで止まった音は、タップでしか戻せない)
 $('btnStart').addEventListener('click', startSensors);
 $('btnReset').addEventListener('click', () => {
+  initAudio();
   log('左からやり直し');
   setState('waitL');
 });
-$('btnAgain').addEventListener('click', () => setState('waitL'));
+$('btnAgain').addEventListener('click', () => {
+  initAudio();
+  setState('waitL');
+});
+$('btnForceL').addEventListener('click', () => {
+  initAudio();
+  measure.prevR = null;
+  sensor.stillSince = null;
+  log('前回の右前輪の向きを使わずに、左前輪を待ちます');
+});
 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') {
-    if (state === 'waitR') measure.interrupted = true;
-    log('画面が隠れました', state === 'waitR' ? 'warn' : 'info');
+    // 戻ったとき iOS は向き(α)の基準を取り直すことがあるので、隠れる前の向きは使わない
+    sensor.stillSince = null;
+    sensor.buf = [];
+    measure.prevR = null;
+    if (state === 'waitR') {
+      setState('waitL');
+      notice = '移動中に画面が隠れたので、左前輪からやり直します';
+      log(notice, 'warn');
+    } else {
+      log('画面が隠れました');
+    }
   } else if (sensor.on) {
     keepAwake();
   }
@@ -655,29 +713,35 @@ function renderLive(t) {
   const still = sensor.stillSince !== null ? Math.max(0, (t - sensor.stillSince) / 1000) : 0;
   const n = sensor.n;
   const r = measure.result;
-  const facing = waiting && n ? facingProblem(n) : '';
+  const fp = waiting && n ? facingProblem(n) : null;
+  const facing = fp ? fp.move : '';
+  $('btnForceL').hidden = !(fp && fp.kind === 'prevR');
 
-  let progress = facing ? 0 : Math.min(1, still / settings.stillSec);
+  // 記録しない理由があるときは、バーを満たさない(満タンを見て、記録できたと思わないように)
+  let progress = facing || guard ? 0 : Math.min(1, still / settings.stillSec);
   if (state === 'done') progress = 1;
   $('barFill').style.width = progress * 100 + '%';
 
   let sub;
+  let warn = false;
   if (waiting && sensor.total.ori === 0) {
     sub = 'センサーの値を待っています…';
   } else if (waiting && guard) {
     sub = guard;
+    warn = true;
   } else if (facing) {
     sub = facing;
   } else if (waiting && still > 0) {
     sub = `静止 ${still.toFixed(1)} / ${settings.stillSec} 秒`;
-  } else if (state === 'waitL') {
-    sub = '背面を当て、画面を外に向けて止めてください';
-  } else if (state === 'waitR') {
+  } else if (notice) {
+    sub = notice;
+    warn = true;
+  } else if (waiting) {
     sub = '背面を当て、画面を外に向けて止めてください';
   } else {
     sub = '次を測るときは、左前輪に戻ってから「もう一度測る」を押してください';
   }
-  setText('sub', sub, waiting && guard ? 'sub warn' : 'sub');
+  setText('sub', sub, warn ? 'sub warn' : 'sub');
 
   setText('liveRate', sensor.rateMag === null ? '–' : sensor.rateMag.toFixed(2) + ' °/s',
     sensor.rateMag !== null && sensor.rateMag <= settings.stillThr ? 'ok' : '');
@@ -706,7 +770,10 @@ function renderResult() {
   const { L, R } = measure;
 
   setText('rToe', fmtDeg(r.toe, 2));
-  const parts = [fmtMin(r.toe), r.toe >= 0 ? 'トーイン' : 'トーアウト'];
+  // イン・アウトは、細かいほうの表示(分)に合わせて決める。0 に丸まるときは付けない
+  const toeMin = Number((r.toe * 60).toFixed(1));
+  const parts = [fmtMin(r.toe)];
+  if (toeMin !== 0) parts.push(toeMin > 0 ? 'トーイン' : 'トーアウト');
   if (settings.rimInch !== null) {
     parts.push(`${fmtMm(settings.rimInch * 25.4 * Math.tan(r.toe * DEG))}(リム ${settings.rimInch} インチ)`);
   }
@@ -722,9 +789,6 @@ function renderResult() {
   const notes = [];
   if (r.travel > settings.travelWarn) {
     notes.push(`移動に ${r.travel.toFixed(1)} 秒かかりました(目安 ${settings.travelWarn} 秒以内)。ドリフトが溜まっているかもしれません。`);
-  }
-  if (measure.interrupted) {
-    notes.push('移動中に画面が隠れました。その間の回転を追えていないかもしれません。');
   }
   $('rNotes').replaceChildren(...notes.map((s) => {
     const p = document.createElement('p');
