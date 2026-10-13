@@ -65,6 +65,10 @@
     background: var(--panel);
     color: var(--text);
   }
+  .modes { display: flex; margin: 0 0 12px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--panel); }
+  .modes button { flex: 1; min-height: 44px; border: 0; border-radius: 0; background: transparent; }
+  .modes button + button { border-left: 1px solid var(--line); }
+  .modes button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
   .step { font-size: 13px; color: var(--muted); }
   .prompt { font-size: 26px; font-weight: 700; line-height: 1.3; margin: 2px 0 4px; }
@@ -92,6 +96,7 @@
   button:disabled { opacity: .5; }
   .label { font-size: 13px; color: var(--muted); }
   .big { font-size: 44px; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .result { margin-bottom: 12px; }
   .result table { width: 100%; border-collapse: collapse; margin-top: 12px; font-variant-numeric: tabular-nums; }
   .result th { text-align: left; font-weight: 400; color: var(--muted); padding: 6px 10px 6px 0; white-space: nowrap; vertical-align: top; }
   .result td { padding: 6px 0; }
@@ -144,16 +149,21 @@
     </select>
   </header>
 
+  <div class="modes" role="group">
+    <button id="modeToe" data-i18n="modeToe" aria-pressed="true">トー</button>
+    <button id="modeCam" data-i18n="modeCam" aria-pressed="false">キャンバー</button>
+  </div>
+
   <section class="card" id="statusBox">
     <div class="step" id="step"></div>
     <div class="prompt" id="prompt"></div>
     <div class="sub" id="sub"></div>
     <div class="bar" id="bar" hidden><i id="barFill"></i></div>
     <div class="live" id="live" hidden>
-      <div><span data-i18n="liveRate">回転の速さ</span><b id="liveRate">–</b></div>
-      <div><span data-i18n="liveCam">キャンバー(今)</span><b id="liveCam">–</b></div>
-      <div><span data-i18n="liveTravel">移動時間</span><b id="liveTravel">–</b></div>
-      <div><span data-i18n="liveToe">トータルトー(今)</span><b id="liveToe">–</b></div>
+      <div id="boxWobble"><span data-i18n="liveWobble">ゆれ</span><b id="liveWobble">–</b></div>
+      <div id="boxCam"><span data-i18n="liveCam">キャンバー(今)</span><b id="liveCam">–</b></div>
+      <div id="boxTravel"><span data-i18n="liveTravel">移動時間</span><b id="liveTravel">–</b></div>
+      <div id="boxToe"><span data-i18n="liveToe">トータルトー(今)</span><b id="liveToe">–</b></div>
     </div>
   </section>
 
@@ -161,16 +171,15 @@
     <button class="primary" id="btnStart" data-i18n="btnStart">センサー開始</button>
     <button id="btnReset" data-i18n="btnReset" hidden>左からやり直す</button>
     <button id="btnForceL" data-i18n="btnForceL" hidden>ここが左前輪</button>
+    <button id="btnFlip" data-i18n="btnFlip" hidden>上下逆にしてもう1回</button>
     <button class="primary" id="btnAgain" data-i18n="btnAgain" hidden>もう一度測る</button>
   </div>
 
-  <section class="card result" id="result" hidden>
+  <section class="card result" id="resultToe" hidden>
     <div class="label" data-i18n="resToe">トータルトー(トーイン正)</div>
     <div class="big" id="rToe">–</div>
     <div id="rToeSub"></div>
     <table>
-      <tr><th data-i18n="resCamL">キャンバー 左</th><td id="rCamL"></td></tr>
-      <tr><th data-i18n="resCamR">キャンバー 右</th><td id="rCamR"></td></tr>
       <tr><th data-i18n="resTravel">移動時間</th><td id="rTravel"></td></tr>
       <tr><th data-i18n="resSdL">ばらつき 左</th><td id="rSdL"></td></tr>
       <tr><th data-i18n="resSdR">ばらつき 右</th><td id="rSdR"></td></tr>
@@ -179,19 +188,31 @@
     <div class="notes" id="rNotes"></div>
   </section>
 
+  <section class="card result" id="resultCam" hidden>
+    <div class="label" data-i18n="resCam">キャンバー(ネガが負)</div>
+    <div class="big" id="rCam">–</div>
+    <div id="rCamSub"></div>
+    <table>
+      <tr id="rowCam1"><th data-i18n="resCam1">1回目</th><td id="rCam1"></td></tr>
+      <tr id="rowCam2"><th data-i18n="resCam2">2回目(上下逆)</th><td id="rCam2"></td></tr>
+      <tr id="rowOffset"><th data-i18n="resOffset">付け方の傾き</th><td id="rOffset"></td></tr>
+      <tr><th data-i18n="resSdC">ばらつき</th><td id="rSdC"></td></tr>
+    </table>
+  </section>
+
   <details class="card" id="settingsBox">
     <summary data-i18n="settings">設定</summary>
     <div class="inner form">
       <p class="note" data-i18n="settingsNote">変えた値はこの端末に保存されます。</p>
-      <label><span data-i18n="setStillThr">静止とみなす回転の速さ</span>
-        <span><input id="setStillThr" type="number" inputmode="decimal" step="0.1"> <span class="unit" data-i18n="unitStillThr">°/s 以下</span></span></label>
+      <label><span data-i18n="setStillTol">静止とみなすゆれ</span>
+        <span><input id="setStillTol" type="number" inputmode="decimal" step="0.01"> <span class="unit" data-i18n="unitStillTol">° 以内</span></span></label>
       <label><span data-i18n="setStillSec">静止を続ける時間</span>
         <span><input id="setStillSec" type="number" inputmode="decimal" step="0.1"> <span class="unit" data-i18n="unitSec">秒</span></span></label>
-      <label><span data-i18n="setTravelWarn">移動時間の警告</span>
-        <span><input id="setTravelWarn" type="number" inputmode="decimal" step="1"> <span class="unit" data-i18n="unitSec">秒</span></span></label>
       <label><span data-i18n="setMaxTilt">垂直からの傾きの許容</span>
         <span><input id="setMaxTilt" type="number" inputmode="decimal" step="1"> <span class="unit">°</span></span></label>
-      <label><span data-i18n="setRim">リム径(空欄なら mm 換算なし)</span>
+      <label><span data-i18n="setTravelWarn">トー:移動時間の警告</span>
+        <span><input id="setTravelWarn" type="number" inputmode="decimal" step="1"> <span class="unit" data-i18n="unitSec">秒</span></span></label>
+      <label><span data-i18n="setRim">トー:リム径(空欄なら mm 換算なし)</span>
         <span><input id="setRim" type="number" inputmode="decimal" step="0.5"> <span class="unit" data-i18n="unitInch">インチ</span></span></label>
       <button id="btnDefaults" data-i18n="btnDefaults">初期値に戻す</button>
     </div>
@@ -214,7 +235,6 @@
         <li data-i18n="help2"></li>
         <li data-i18n="help3"></li>
         <li data-i18n="help4"></li>
-        <li data-i18n="help5"></li>
       </ol>
     </div>
   </details>
@@ -247,6 +267,15 @@ function normalFromEuler(alpha, beta, gamma) {
   return [cG * sA * sB + cA * sG, sA * sG - cA * cG * sB, cB * cG];
 }
 
+/**
+ * 画面の右(デバイスの x 軸)と上(y 軸)の世界座標の z 成分。R の1列目と2列目の z。
+ * 重力が基準なので、向き(α)の基準が変わっても変わらない。治具を上下逆にしたかを見分けるのに使う。
+ */
+function axesZ(beta, gamma) {
+  const b = beta * DEG, g = gamma * DEG;
+  return [-Math.cos(b) * Math.sin(g), Math.sin(b)];
+}
+
 /** 水平方向の向き ψ(上から見て反時計回り、度) */
 function headingOf(n) {
   return Math.atan2(n[1], n[0]) / DEG;
@@ -274,6 +303,12 @@ function meanNormal(ns) {
   return len > 0 ? [x / len, y / len, z / len] : null;
 }
 
+/** 2つの向きのなす角(度)。小さい角でも精度が落ちないよう atan2 で出す */
+function angleBetween(a, b) {
+  const c = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  return Math.atan2(Math.hypot(c[0], c[1], c[2]), a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) / DEG;
+}
+
 function stdev(xs) {
   if (xs.length < 2) return 0;
   const m = xs.reduce((s, x) => s + x, 0) / xs.length;
@@ -288,52 +323,70 @@ function spreadOf(ns, mean) {
     cam: stdev(ns.map((n) => camberOf(n) - cam0)),
   };
 }
+
+/**
+ * 治具を上下逆にしたか。1回目に縦に近かった軸(画面の右か上)の z 成分の符号が逆になっていれば上下逆。
+ * 当てる面はほぼ垂直なので、縦に近いほうの軸の |z| は 0.7 以上になる。
+ */
+function isFlipped(refZ, nowZ) {
+  const k = Math.abs(refZ[0]) > Math.abs(refZ[1]) ? 0 : 1;
+  return Math.sign(refZ[k]) !== Math.sign(nowZ[k]) && Math.abs(nowZ[k]) > 0.5;
+}
 // --- math:end ---
 
 // ---- 文言(日本語と英語。キーは両方にそろえる。引数のある文言は関数) ----
 const I18N = {
   ja: {
     subtitle: 'アライメント測定(お試し版)',
-    liveRate: '回転の速さ',
+    modeToe: 'トー',
+    modeCam: 'キャンバー',
+    liveWobble: 'ゆれ',
     liveCam: 'キャンバー(今)',
     liveTravel: '移動時間',
     liveToe: 'トータルトー(今)',
     btnStart: 'センサー開始',
     btnReset: '左からやり直す',
     btnForceL: 'ここが左前輪',
+    btnFlip: '上下逆にしてもう1回',
     btnAgain: 'もう一度測る',
     resToe: 'トータルトー(トーイン正)',
-    resCamL: 'キャンバー 左',
-    resCamR: 'キャンバー 右',
     resTravel: '移動時間',
     resSdL: 'ばらつき 左',
     resSdR: 'ばらつき 右',
     resPsi: '向き ψ 左 / 右',
+    resCam: 'キャンバー(ネガが負)',
+    resCam1: '1回目',
+    resCam2: '2回目(上下逆)',
+    resOffset: '付け方の傾き',
+    resSdC: 'ばらつき',
     settings: '設定',
     settingsNote: '変えた値はこの端末に保存されます。',
-    setStillThr: '静止とみなす回転の速さ',
-    unitStillThr: '°/s 以下',
+    setStillTol: '静止とみなすゆれ',
+    unitStillTol: '° 以内',
     setStillSec: '静止を続ける時間',
     unitSec: '秒',
-    setTravelWarn: '移動時間の警告',
     setMaxTilt: '垂直からの傾きの許容',
-    setRim: 'リム径(空欄なら mm 換算なし)',
+    setTravelWarn: 'トー:移動時間の警告',
+    setRim: 'トー:リム径(空欄なら mm 換算なし)',
     unitInch: 'インチ',
     btnDefaults: '初期値に戻す',
     debug: 'デバッグ',
     btnCopy: '表示とログをコピー',
     help: '使い方',
-    help1: '治具(リムの縁に当たる L字や平板)に iPhone を固定します。ケースは外すか、毎回同じ状態にします。',
-    help2: '「センサー開始」を押して、センサーの使用を許可します。',
-    help3: '左前輪に iPhone の背面を当て、画面を車の外側に向けます。止めておくとピッと鳴って記録されます。',
-    help4: 'そのまま車の前を回って右前輪へ。背面を当てて止めると、ピピッと鳴って結果が出ます。',
-    help5: '移動は手早く(目安 15 秒以内)。時間が長いほど、ずれ(ドリフト)が溜まります。',
+    help1: 'トーとキャンバーは別々に測ります。上で選んでから「センサー開始」を押し、センサーの使用を許可します。',
+    help2: 'iPhone は治具に固定し、背面を当てて画面を車の外側に向けます。止めておくとピッと鳴って記録されます。ケースは外すか、毎回同じ状態にします。',
+    help3: 'トー:リムの前と後ろの2点に当たる横向きの棒を、水平にしてリムに押し当てます(傾けて立てかけると誤差が出ます)。左前輪で記録したら、棒を裏返さずに車の前を回り、右前輪に当てます。移動は手早く(目安 15 秒以内)。',
+    help4: 'キャンバー:リムの上と下の2点に当たる縦向きの棒を当てます。1輪ずつ測れます。棒を上下逆にしてもう1回測ると、iPhone の付け方の傾きが消えます。床が平らな場所で測ります。',
 
     steps: {
       idle: ['準備', '「センサー開始」を押してください'],
-      waitL: ['1 / 2 左前輪', '左前輪に当ててください'],
-      waitR: ['2 / 2 右前輪', '右前輪へ移動して当ててください'],
-      done: ['結果', '測定できました'],
+      waitL: ['トー 1 / 2 左前輪', '左前輪に当ててください'],
+      waitR: ['トー 2 / 2 右前輪', '右前輪へ移動して当ててください'],
+      toeDone: ['トー 結果', '測定できました'],
+      waitC: ['キャンバー', '測りたい輪に当ててください'],
+      camDone: ['キャンバー 結果', '測定できました'],
+      waitCF: ['キャンバー 上下逆', '棒を上下逆にして、同じ輪に当ててください'],
+      camDoneF: ['キャンバー 結果', '上下逆の平均を出しました'],
     },
     idleSub: 'iPhone の Safari で、HTTPS で開いてください。',
     notHttps: 'HTTPS で開いていません。センサーは HTTPS でないと使えません。',
@@ -341,19 +394,24 @@ const I18N = {
     waitingSensor: 'センサーの値を待っています…',
     stillProgress: (s, max) => `静止 ${s} / ${max} 秒`,
     placeHint: '背面を当て、画面を外に向けて止めてください',
-    doneHint: '次を測るときは、左前輪に戻ってから「もう一度測る」を押してください',
+    toeDoneHint: '次を測るときは、左前輪に戻ってから「もう一度測る」を押してください',
+    camDoneHint: '棒を上下逆にしてもう1回測ると、付け方の傾きが消えます',
+    camDoneFHint: 'ほかの輪を測るときは「もう一度測る」を押してください',
     facingPrevR: 'まだ右前輪の向きです。左前輪へ移動してください',
     facingMove: '左前輪を記録しました。車の前を回ってください',
     facingStill: (off) => `右前輪の向きではありません(左前輪の反対から ${off}° ずれ)`,
+    flipMove: '棒を上下逆にして、同じ輪に当ててください',
     guardTilt: (deg, max) => `垂直から ${deg}° 傾いています(許容 ${max}°)`,
     guardFew: '向きの値が足りません',
     noticeHidden: '移動中に画面が隠れたので、左前輪からやり直します',
     toeIn: 'トーイン',
     toeOut: 'トーアウト',
+    camAvg: '上下逆の平均',
     sep: ' ・ ',
     rim: (inch) => `(リム ${inch} インチ)`,
     seconds: (s) => `${s} 秒`,
-    spread: (h, v, n) => `水平 ${h}′ ・ 縦 ${v}′(${n} 個)`,
+    spreadH: (h, n) => `水平 ${h}′(${n} 個)`,
+    spreadV: (v, n) => `縦 ${v}′(${n} 個)`,
     noteTravel: (s, max) => `移動に ${s} 秒かかりました(目安 ${max} 秒以内)。ドリフトが溜まっているかもしれません。`,
 
     logError: (m, l, c) => `エラー: ${m} (${l}:${c})`,
@@ -367,19 +425,23 @@ const I18N = {
     logAudioResume: (st) => `音を鳴らせませんでした(${st})。ボタンを押すと戻ります`,
     logNoWakeLock: '画面の自動ロックを止められません(Wake Lock 非対応)。自動ロックを長めにしてください',
     logWakeLockFail: (m) => `画面を点けたままにできませんでした: ${m}`,
-    logGap: (s) => `動きの値が ${s} 秒途切れたので、静止を数え直します`,
+    logGap: (s) => `向きの値が ${s} 秒途切れたので、静止を数え直します`,
     logStartFail: (m) => `センサーを始められませんでした: ${m}`,
     logNotHttps: 'HTTPS で開いていないので、センサーが使えないかもしれません',
     logNoEvents: 'このブラウザはセンサーのイベントに対応していません',
     logPermission: (o, m) => `センサーの許可: 向き=${o} / 動き=${m}`,
     permNotNeeded: '不要',
     permFailed: (m) => `失敗 ${m}`,
-    logNoOri: '向き(deviceorientation)の値が届きません',
-    logNoMot: '動き(devicemotion)の値が届きません。静止を判定できません',
+    logNoOri: '向き(deviceorientation)の値が届きません。測定できません',
+    logNoMot: '動き(devicemotion)の値が届きません(デバッグの表示にだけ使っています)',
+    logMode: (m) => `モード: ${m}`,
     capDesc: (psi, cam, sh, sv, n) => `ψ=${psi}° キャンバー=${cam}° σ水平=${sh}′ σ縦=${sv}′ (${n}個)`,
     logCapL: (d) => `左を記録: ${d}`,
     logCapR: (d) => `右を記録: ${d}`,
     logResult: (toe, s) => `結果: トータルトー=${toe}° 移動=${s}秒`,
+    logCapC: (d) => `キャンバーを記録: ${d}`,
+    logCapCF: (d) => `上下逆を記録: ${d}`,
+    logResultC: (c, o) => `結果: キャンバー=${c}° 付け方の傾き=${o}°`,
     logRestart: '左からやり直し',
     logForceL: '前回の右前輪の向きを使わずに、左前輪を待ちます',
     logHidden: '画面が隠れました',
@@ -388,53 +450,62 @@ const I18N = {
 
     dbg: {
       state: '状態', ori: '向き', mot: '動き', res: '分解能', normal: '法線 n', still: '静止',
-      total: '計', yes: 'あり', no: 'なし', threshold: 'しきい値', camber: 'キャンバー',
+      total: '計', yes: 'あり', no: 'なし', camber: 'キャンバー', wobble: 'ゆれ', tol: '許容',
       buffer: (n) => `バッファ ${n} 個`,
     },
   },
 
   en: {
     subtitle: 'Alignment check (trial)',
-    liveRate: 'Rotation rate',
+    modeToe: 'Toe',
+    modeCam: 'Camber',
+    liveWobble: 'Wobble',
     liveCam: 'Camber (now)',
     liveTravel: 'Travel time',
     liveToe: 'Total toe (now)',
     btnStart: 'Start sensors',
     btnReset: 'Restart from left',
     btnForceL: 'This is the left wheel',
+    btnFlip: 'Flip and measure again',
     btnAgain: 'Measure again',
     resToe: 'Total toe (toe-in positive)',
-    resCamL: 'Camber, left',
-    resCamR: 'Camber, right',
     resTravel: 'Travel time',
     resSdL: 'Spread, left',
     resSdR: 'Spread, right',
     resPsi: 'Heading ψ, left / right',
+    resCam: 'Camber (negative = top in)',
+    resCam1: '1st',
+    resCam2: '2nd (flipped)',
+    resOffset: 'Mount tilt',
+    resSdC: 'Spread',
     settings: 'Settings',
     settingsNote: 'Changes are saved on this device.',
-    setStillThr: 'Still when rotation is at most',
-    unitStillThr: '°/s',
+    setStillTol: 'Still when wobble is within',
+    unitStillTol: '°',
     setStillSec: 'Hold still for',
     unitSec: 's',
-    setTravelWarn: 'Warn when travel takes over',
     setMaxTilt: 'Allowed tilt from vertical',
-    setRim: 'Rim diameter (blank: no mm value)',
+    setTravelWarn: 'Toe: warn when travel takes over',
+    setRim: 'Toe: rim diameter (blank: no mm value)',
     unitInch: 'in',
     btnDefaults: 'Reset to defaults',
     debug: 'Debug',
     btnCopy: 'Copy panel and log',
     help: 'How to use',
-    help1: 'Fix the iPhone to a jig (an L-shaped bracket or flat plate that rests on the rim lip). Remove the case, or keep it the same every time.',
-    help2: 'Tap “Start sensors” and allow access to motion sensors.',
-    help3: 'Hold the back of the iPhone against the front-left wheel, with the screen facing away from the car. Hold still, and it beeps once when the reading is recorded.',
-    help4: 'Walk around the front of the car to the front-right wheel and hold it the same way. It beeps twice and shows the result.',
-    help5: 'Move quickly (within about 15 seconds). The longer the walk takes, the more drift builds up.',
+    help1: 'Toe and camber are measured separately. Choose one at the top, tap “Start sensors” and allow access to motion sensors.',
+    help2: 'Fix the iPhone to a jig, put its back against the wheel with the screen facing away from the car, and hold still. It beeps when the reading is recorded. Remove the case, or keep it the same every time.',
+    help3: 'Toe: use a horizontal bar that touches the rim lip at the front and the rear. Keep it level and press it against the rim (leaning it causes errors). After the front-left wheel, walk around the front of the car without turning the bar over, and place it on the front-right wheel. Move quickly (within about 15 seconds).',
+    help4: 'Camber: use a vertical bar that touches the rim lip at the top and the bottom. Measure one wheel at a time. Measuring again with the bar upside down cancels out how the iPhone is mounted. Measure on level ground.',
 
     steps: {
       idle: ['Ready', 'Tap “Start sensors”'],
-      waitL: ['1 / 2 Front left', 'Place it on the front-left wheel'],
-      waitR: ['2 / 2 Front right', 'Move to the front-right wheel and place it'],
-      done: ['Result', 'Measured'],
+      waitL: ['Toe 1 / 2 Front left', 'Place it on the front-left wheel'],
+      waitR: ['Toe 2 / 2 Front right', 'Move to the front-right wheel and place it'],
+      toeDone: ['Toe result', 'Measured'],
+      waitC: ['Camber', 'Place it on the wheel to measure'],
+      camDone: ['Camber result', 'Measured'],
+      waitCF: ['Camber, flipped', 'Turn the bar upside down and place it on the same wheel'],
+      camDoneF: ['Camber result', 'Averaged with the flipped reading'],
     },
     idleSub: 'Open this page in Safari on iPhone, over HTTPS.',
     notHttps: 'This page is not open over HTTPS. Motion sensors only work over HTTPS.',
@@ -442,19 +513,24 @@ const I18N = {
     waitingSensor: 'Waiting for sensor values…',
     stillProgress: (s, max) => `Still ${s} / ${max} s`,
     placeHint: 'Put the back against the wheel, screen facing out, and hold still',
-    doneHint: 'To measure again, go back to the front-left wheel and tap “Measure again”',
+    toeDoneHint: 'To measure again, go back to the front-left wheel and tap “Measure again”',
+    camDoneHint: 'Measuring again with the bar upside down cancels out the mount tilt',
+    camDoneFHint: 'To measure another wheel, tap “Measure again”',
     facingPrevR: 'Still facing the front-right wheel. Move to the front-left wheel',
     facingMove: 'Front left recorded. Walk around the front of the car',
     facingStill: (off) => `Not facing the front-right wheel (${off}° off from opposite the front left)`,
+    flipMove: 'Turn the bar upside down and place it on the same wheel',
     guardTilt: (deg, max) => `Tilted ${deg}° from vertical (limit ${max}°)`,
     guardFew: 'Not enough orientation values',
     noticeHidden: 'The screen was hidden while moving, so start again from the front-left wheel',
     toeIn: 'toe-in',
     toeOut: 'toe-out',
+    camAvg: 'average of normal and flipped',
     sep: ' · ',
     rim: (inch) => ` (rim ${inch} in)`,
     seconds: (s) => `${s} s`,
-    spread: (h, v, n) => `horizontal ${h}′ · vertical ${v}′ (${n} samples)`,
+    spreadH: (h, n) => `horizontal ${h}′ (${n} samples)`,
+    spreadV: (v, n) => `vertical ${v}′ (${n} samples)`,
     noteTravel: (s, max) => `Travel took ${s} s (aim for ${max} s or less). Drift may have built up.`,
 
     logError: (m, l, c) => `Error: ${m} (${l}:${c})`,
@@ -468,19 +544,23 @@ const I18N = {
     logAudioResume: (st) => `Could not beep (${st}). Tapping a button brings it back`,
     logNoWakeLock: 'Cannot keep the screen on (no Wake Lock). Set Auto-Lock to a longer time',
     logWakeLockFail: (m) => `Could not keep the screen on: ${m}`,
-    logGap: (s) => `Motion values stopped for ${s} s, so stillness is counted again`,
+    logGap: (s) => `Orientation values stopped for ${s} s, so stillness is counted again`,
     logStartFail: (m) => `Could not start sensors: ${m}`,
     logNotHttps: 'Not open over HTTPS, so sensors may not work',
     logNoEvents: 'This browser does not support sensor events',
     logPermission: (o, m) => `Sensor permission: orientation=${o} / motion=${m}`,
     permNotNeeded: 'not needed',
     permFailed: (m) => `failed ${m}`,
-    logNoOri: 'No orientation (deviceorientation) values are arriving',
-    logNoMot: 'No motion (devicemotion) values are arriving, so stillness cannot be detected',
+    logNoOri: 'No orientation (deviceorientation) values are arriving, so nothing can be measured',
+    logNoMot: 'No motion (devicemotion) values are arriving (only used for the debug panel)',
+    logMode: (m) => `Mode: ${m}`,
     capDesc: (psi, cam, sh, sv, n) => `ψ=${psi}° camber=${cam}° σh=${sh}′ σv=${sv}′ (${n} samples)`,
     logCapL: (d) => `Recorded left: ${d}`,
     logCapR: (d) => `Recorded right: ${d}`,
     logResult: (toe, s) => `Result: total toe=${toe}° travel=${s} s`,
+    logCapC: (d) => `Recorded camber: ${d}`,
+    logCapCF: (d) => `Recorded flipped: ${d}`,
+    logResultC: (c, o) => `Result: camber=${c}° mount tilt=${o}°`,
     logRestart: 'Restart from left',
     logForceL: 'Ignoring the previous front-right heading; waiting for the front-left wheel',
     logHidden: 'The screen was hidden',
@@ -489,7 +569,7 @@ const I18N = {
 
     dbg: {
       state: 'state', ori: 'orient', mot: 'motion', res: 'resol.', normal: 'normal n', still: 'still',
-      total: 'total', yes: 'yes', no: 'no', threshold: 'threshold', camber: 'camber',
+      total: 'total', yes: 'yes', no: 'no', camber: 'camber', wobble: 'wobble', tol: 'limit',
       buffer: (n) => `buffer ${n} samples`,
     },
   },
@@ -528,6 +608,7 @@ function signed(x, digits) {
 const fmtDeg = (d, digits = 2) => signed(d, digits) + '°';
 const fmtMin = (d) => signed(d * 60, 1) + '′';
 const fmtMm = (mm) => signed(mm, 1) + ' mm';
+const fmtDegMin = (d) => `${fmtDeg(d)}(${fmtMin(d)})`;
 
 // ---- ログ(iPhone ではコンソールが見られないので、画面のデバッグパネルに出す) ----
 // 書いたときの言語のまま残る(言語を切り替えても書き直さない)
@@ -552,9 +633,9 @@ window.addEventListener('unhandledrejection', (e) => log(t('logPromiseError', er
 
 // ---- 設定 ----
 const SETTINGS_KEY = 'reckon.settings.v1';
-const DEFAULTS = { stillThr: 0.5, stillSec: 1.5, travelWarn: 15, maxTilt: 15, rimInch: null };
-const LIMITS = { stillThr: [0.05, 10], stillSec: [0.3, 8], travelWarn: [1, 300], maxTilt: [1, 45], rimInch: [8, 30] };
-const SETTING_INPUTS = { stillThr: 'setStillThr', stillSec: 'setStillSec', travelWarn: 'setTravelWarn', maxTilt: 'setMaxTilt', rimInch: 'setRim' };
+const DEFAULTS = { stillTol: 0.15, stillSec: 1.5, maxTilt: 15, travelWarn: 15, rimInch: null };
+const LIMITS = { stillTol: [0.01, 2], stillSec: [0.3, 8], maxTilt: [1, 45], travelWarn: [1, 300], rimInch: [8, 30] };
+const SETTING_INPUTS = { stillTol: 'setStillTol', stillSec: 'setStillSec', maxTilt: 'setMaxTilt', travelWarn: 'setTravelWarn', rimInch: 'setRim' };
 
 const inRange = (k, v) => typeof v === 'number' && Number.isFinite(v) && v >= LIMITS[k][0] && v <= LIMITS[k][1];
 
@@ -692,12 +773,14 @@ const sensor = {
   on: false,
   ori: null,          // 最後の deviceorientation の生値
   n: null,            // 最後の法線
-  buf: [],            // 直近の { t, n }
-  rate: null,         // 最後の rotationRate の生値(°/s)
+  axz: null,          // 最後の画面の右・上の z 成分
+  buf: [],            // 直近の { t, n, axz }
+  stillSince: null,   // 静止が始まった時刻(静止していなければ null)
+  wobble: null,       // 最後の向きと、静止区間の平均とのなす角(度)
+  lastOri: null,      // 最後の deviceorientation の時刻
+  rate: null,         // 最後の rotationRate の生値(°/s。デバッグの表示だけ)
   rateMag: null,
   interval: null,
-  stillSince: null,   // 静止が始まった時刻(静止していなければ null)
-  lastMot: null,      // 最後の devicemotion の時刻
   nulls: { ori: 0, mot: 0 },
   total: { ori: 0, mot: 0 },
   win: { ori: 0, mot: 0 },
@@ -705,6 +788,29 @@ const sensor = {
   hzT: performance.now(),
   res: { alpha: Infinity, beta: Infinity, gamma: Infinity }, // 続く値の差のうち 0 でない最小(分解能の目安)
 };
+
+/** バッファのうち、時刻 from 以降のもの */
+function recentSamples(from) {
+  let i = sensor.buf.length;
+  while (i > 0 && sensor.buf[i - 1].t >= from) i--;
+  return sensor.buf.slice(i);
+}
+
+/**
+ * 静止の判定。最後の向きが、静止区間(長くても直近の「静止を続ける時間」)の平均から許容より離れたら、
+ * そこから数え直す。手の震えは速いが向きはほとんど変わらないので通し、ゆっくり流れる動きは平均から離れるので止める。
+ */
+function updateStill(now, n) {
+  if (sensor.stillSince === null) {
+    sensor.stillSince = now;
+    sensor.wobble = 0;
+    return;
+  }
+  const win = recentSamples(Math.max(sensor.stillSince, now - settings.stillSec * 1000));
+  const mean = meanNormal(win.map((s) => s.n));
+  sensor.wobble = mean ? angleBetween(n, mean) : 0;
+  if (sensor.wobble > settings.stillTol) sensor.stillSince = now;
+}
 
 function onOrientation(e) {
   if (e.alpha == null || e.beta == null || e.gamma == null) {
@@ -721,11 +827,23 @@ function onOrientation(e) {
   }
   sensor.ori = { alpha: e.alpha, beta: e.beta, gamma: e.gamma, absolute: e.absolute };
   sensor.n = normalFromEuler(e.alpha, e.beta, e.gamma);
+  sensor.axz = axesZ(e.beta, e.gamma);
   sensor.total.ori++;
   sensor.win.ori++;
-  sensor.buf.push({ t: now, n: sensor.n });
+
+  // 値が途切れていた間に動いたかどうかは分からないので、静止は数え直す
+  if (sensor.lastOri !== null && now - sensor.lastOri > MAX_GAP_MS) {
+    if (sensor.stillSince !== null) log(t('logGap', ((now - sensor.lastOri) / 1000).toFixed(1)));
+    sensor.stillSince = null;
+  }
+  sensor.lastOri = now;
+
+  sensor.buf.push({ t: now, n: sensor.n, axz: sensor.axz });
   const keep = Math.max(10, settings.stillSec + 3) * 1000;
   while (sensor.buf.length && sensor.buf[0].t < now - keep) sensor.buf.shift();
+
+  updateStill(now, sensor.n);
+  tryCapture(now);
 }
 
 function onMotion(e) {
@@ -734,24 +852,11 @@ function onMotion(e) {
     sensor.nulls.mot++;
     return;
   }
-  const now = performance.now();
   sensor.rate = { alpha: r.alpha, beta: r.beta, gamma: r.gamma };
   sensor.rateMag = Math.hypot(r.alpha, r.beta, r.gamma);
   sensor.interval = e.interval;
   sensor.total.mot++;
   sensor.win.mot++;
-  // 値が途切れていた間に動いたかどうかは分からないので、静止は数え直す
-  if (sensor.lastMot !== null && now - sensor.lastMot > MAX_GAP_MS) {
-    if (sensor.stillSince !== null) log(t('logGap', ((now - sensor.lastMot) / 1000).toFixed(1)));
-    sensor.stillSince = null;
-  }
-  sensor.lastMot = now;
-  if (sensor.rateMag <= settings.stillThr) {
-    if (sensor.stillSince === null) sensor.stillSince = now;
-  } else {
-    sensor.stillSince = null;
-  }
-  tryCapture(now);
 }
 
 const NOT_NEEDED = 'not-needed'; // requestPermission がない(iOS 以外)
@@ -795,29 +900,48 @@ async function startSensorsInner() {
   window.addEventListener('devicemotion', onMotion);
   sensor.on = true;
   keepAwake();
-  setState('waitL');
+  setState(firstState());
 
   setTimeout(() => {
     if (sensor.total.ori === 0) log(t('logNoOri'), 'bad');
-    if (sensor.total.mot === 0) log(t('logNoMot'), 'bad');
+    if (sensor.total.mot === 0) log(t('logNoMot'), 'warn');
   }, 2000);
 }
 
 // ---- 測定の流れ ----
-// idle → waitL(左前輪で静止を待つ)→ waitR(右前輪で静止を待つ)→ done
+// トー:     idle → waitL(左前輪)→ waitR(右前輪)→ toeDone
+// キャンバー: idle → waitC → camDone →(上下逆にするなら)waitCF → camDoneF
 const FACING_TOL = 45; // 右前輪は左前輪のほぼ反対を向くはず。この角度より外れていたら記録しない
-const MAX_GAP_MS = 300; // 動きの値がこれより長く途切れたら、静止を数え直す
+const MAX_GAP_MS = 300; // 向きの値がこれより長く途切れたら、静止を数え直す
+const MODE_KEY = 'reckon.mode.v1';
 
+function loadMode() {
+  try {
+    const saved = localStorage.getItem(MODE_KEY);
+    if (saved === 'toe' || saved === 'camber') return saved;
+  } catch (e) {
+    // 読めなければトー
+  }
+  return 'toe';
+}
+
+let mode = loadMode();
 let state = 'idle';
-let guard = '';  // 静止しているのに記録しない理由(動きの値が届くたびに作り直す)
-let notice = ''; // 左前輪を待つ画面に出すお知らせのキー(やり直しになった理由など)
-const measure = { L: null, R: null, result: null, prevR: null };
+let guard = '';  // 静止しているのに記録しない理由(向きの値が届くたびに作り直す)
+let notice = ''; // 待っている画面に出すお知らせのキー(やり直しになった理由など)
+const measure = { L: null, R: null, result: null, prevR: null, C1: null, C2: null };
+
+const firstState = () => (mode === 'toe' ? 'waitL' : 'waitC');
+const isWaiting = (s) => s === 'waitL' || s === 'waitR' || s === 'waitC' || s === 'waitCF';
+const isDone = (s) => s === 'toeDone' || s === 'camDone' || s === 'camDoneF';
 
 function setState(s) {
   if (s === 'waitL') {
     if (measure.R) measure.prevR = measure.R;
     measure.L = measure.R = measure.result = null;
   }
+  if (s === 'waitC') measure.C1 = measure.C2 = null;
+  if (s === 'waitCF') measure.C2 = null;
   state = s;
   sensor.stillSince = null;
   guard = '';
@@ -826,14 +950,34 @@ function setState(s) {
   renderResult();
 }
 
+function setMode(m) {
+  if (m === mode) return;
+  mode = m;
+  try {
+    localStorage.setItem(MODE_KEY, m);
+  } catch (e) {
+    log(t('logSaveFail', e.message), 'warn');
+  }
+  measure.L = measure.R = measure.result = measure.C1 = measure.C2 = null;
+  log(t('logMode', t(m === 'toe' ? 'modeToe' : 'modeCam')));
+  if (sensor.on) {
+    setState(firstState());
+  } else {
+    renderStatic();
+    renderResult();
+  }
+}
+
 /**
- * 今の輪を記録してよい向きでなければ、その理由を返す(move は動いている間、still は止まっているのに記録しないときの文言)。
+ * 今の向きで記録してはいけないなら、その理由を返す(move は動いている間、still は止まっているのに記録しないときの文言)。
  * 右前輪は左前輪のほぼ反対を向く。2回目以降の左前輪は、前回の右前輪の向きのままなら押し間違い。
+ * キャンバーの2回目は、1回目と上下逆になっていること。
  */
-function facingProblem(n) {
+function facingProblem(n, axz) {
   const psi = headingOf(n);
   if (state === 'waitL' && measure.prevR && Math.abs(wrap180(psi - measure.prevR.psi)) < FACING_TOL) {
-    return { kind: 'prevR', move: t('facingPrevR'), still: t('facingPrevR') };
+    const msg = t('facingPrevR');
+    return { kind: 'prevR', move: msg, still: msg };
   }
   if (state === 'waitR') {
     const off = Math.abs(wrap180(psi - measure.L.psi - 180));
@@ -842,15 +986,19 @@ function facingProblem(n) {
       return { kind: 'notOpposite', move: t('facingMove'), still: t('facingStill', off.toFixed(0)) };
     }
   }
+  if (state === 'waitCF' && axz && !isFlipped(measure.C1.axz, axz)) {
+    const msg = t('flipMove');
+    return { kind: 'notFlipped', move: msg, still: msg };
+  }
   return null;
 }
 
 function tryCapture(now) {
   guard = '';
-  if (state !== 'waitL' && state !== 'waitR') return;
+  if (!isWaiting(state)) return;
   if (sensor.stillSince === null || now - sensor.stillSince < settings.stillSec * 1000) return;
 
-  const samples = sensor.buf.filter((s) => s.t >= sensor.stillSince);
+  const samples = recentSamples(now - settings.stillSec * 1000);
   if (samples.length < 5) {
     guard = t('guardFew');
     return;
@@ -858,10 +1006,11 @@ function tryCapture(now) {
   const ns = samples.map((s) => s.n);
   const mean = meanNormal(ns);
   if (!mean) return;
+  const axz = [0, 1].map((k) => samples.reduce((s, x) => s + x.axz[k], 0) / samples.length);
   const cam = camberOf(mean);
   const psi = headingOf(mean);
 
-  const fp = facingProblem(mean);
+  const fp = facingProblem(mean, axz);
   if (fp) {
     guard = fp.still;
     return;
@@ -872,21 +1021,33 @@ function tryCapture(now) {
   }
 
   const sp = spreadOf(ns, mean);
-  const cap = { t: now, n: mean, psi, camber: cam, sdPsi: sp.psi, sdCam: sp.cam, count: samples.length };
+  const cap = { t: now, n: mean, axz, psi, camber: cam, sdPsi: sp.psi, sdCam: sp.cam, count: samples.length };
   const desc = t('capDesc', psi.toFixed(3), cam.toFixed(3), (sp.psi * 60).toFixed(2), (sp.cam * 60).toFixed(2), samples.length);
   if (state === 'waitL') {
     measure.L = cap;
     log(t('logCapL', desc));
     signal(1);
     setState('waitR');
-  } else {
+  } else if (state === 'waitR') {
     measure.R = cap;
     const L = measure.L;
-    measure.result = { toe: totalToe(L.psi, cap.psi), camL: L.camber, camR: cap.camber, travel: (cap.t - L.t) / 1000 };
+    measure.result = { toe: totalToe(L.psi, cap.psi), travel: (cap.t - L.t) / 1000 };
     log(t('logCapR', desc));
     log(t('logResult', measure.result.toe.toFixed(3), measure.result.travel.toFixed(1)));
     signal(2);
-    setState('done');
+    setState('toeDone');
+  } else if (state === 'waitC') {
+    measure.C1 = cap;
+    log(t('logCapC', desc));
+    signal(1);
+    setState('camDone');
+  } else {
+    measure.C2 = cap;
+    const c1 = measure.C1.camber;
+    log(t('logCapCF', desc));
+    log(t('logResultC', ((c1 + cap.camber) / 2).toFixed(3), ((c1 - cap.camber) / 2).toFixed(3)));
+    signal(2);
+    setState('camDoneF');
   }
 }
 
@@ -899,7 +1060,11 @@ $('btnReset').addEventListener('click', () => {
 });
 $('btnAgain').addEventListener('click', () => {
   initAudio();
-  setState('waitL');
+  setState(firstState());
+});
+$('btnFlip').addEventListener('click', () => {
+  initAudio();
+  setState('waitCF');
 });
 $('btnForceL').addEventListener('click', () => {
   initAudio();
@@ -907,10 +1072,13 @@ $('btnForceL').addEventListener('click', () => {
   sensor.stillSince = null;
   log(t('logForceL'));
 });
+$('modeToe').addEventListener('click', () => setMode('toe'));
+$('modeCam').addEventListener('click', () => setMode('camber'));
 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') {
-    // 戻ったとき iOS は向き(α)の基準を取り直すことがあるので、隠れる前の向きは使わない
+    // 戻ったとき iOS は向き(α)の基準を取り直すことがあるので、隠れる前の向きは使わない。
+    // キャンバーは重力が基準なので、上下逆の待ちはそのまま続けてよい
     sensor.stillSince = null;
     sensor.buf = [];
     measure.prevR = null;
@@ -942,26 +1110,33 @@ function renderStatic() {
     else if (permDenied) setText('sub', t('denied'), 'sub warn');
     else setText('sub', t('idleSub'), 'sub');
   }
+  const toeMode = mode === 'toe';
+  $('modeToe').setAttribute('aria-pressed', String(toeMode));
+  $('modeCam').setAttribute('aria-pressed', String(!toeMode));
   $('btnStart').hidden = state !== 'idle';
   $('btnReset').hidden = state !== 'waitR';
-  $('btnAgain').hidden = state !== 'done';
+  $('btnFlip').hidden = state !== 'camDone';
+  $('btnAgain').hidden = !(isDone(state) || state === 'waitCF');
+  if (state !== 'waitL') $('btnForceL').hidden = true;
   $('bar').hidden = state === 'idle';
   $('live').hidden = state === 'idle';
+  $('boxCam').hidden = toeMode;
+  $('boxTravel').hidden = !toeMode;
+  $('boxToe').hidden = !toeMode;
 }
 
 function renderLive(now) {
   if (state === 'idle') return;
-  const waiting = state === 'waitL' || state === 'waitR';
+  const waiting = isWaiting(state);
   const still = sensor.stillSince !== null ? Math.max(0, (now - sensor.stillSince) / 1000) : 0;
   const n = sensor.n;
-  const r = measure.result;
-  const fp = waiting && n ? facingProblem(n) : null;
+  const fp = waiting && n ? facingProblem(n, sensor.axz) : null;
   const facing = fp ? fp.move : '';
   $('btnForceL').hidden = !(fp && fp.kind === 'prevR');
 
   // 記録しない理由があるときは、バーを満たさない(満タンを見て、記録できたと思わないように)
   let progress = facing || guard ? 0 : Math.min(1, still / settings.stillSec);
-  if (state === 'done') progress = 1;
+  if (isDone(state)) progress = 1;
   $('barFill').style.width = progress * 100 + '%';
 
   let sub;
@@ -981,33 +1156,42 @@ function renderLive(now) {
   } else if (waiting) {
     sub = t('placeHint');
   } else {
-    sub = t('doneHint');
+    sub = t({ toeDone: 'toeDoneHint', camDone: 'camDoneHint', camDoneF: 'camDoneFHint' }[state]);
   }
   setText('sub', sub, warn ? 'sub warn' : 'sub');
 
-  setText('liveRate', sensor.rateMag === null ? '–' : sensor.rateMag.toFixed(2) + ' °/s',
-    sensor.rateMag !== null && sensor.rateMag <= settings.stillThr ? 'ok' : '');
+  setText('liveWobble', sensor.wobble === null ? '–' : sensor.wobble.toFixed(2) + '°',
+    sensor.wobble !== null && sensor.wobble <= settings.stillTol ? 'ok' : '');
 
-  const cam = n ? camberOf(n) : null;
-  setText('liveCam', cam === null ? '–' : fmtDeg(cam, 1), cam !== null && Math.abs(cam) > settings.maxTilt ? 'warn' : '');
+  if (mode === 'camber') {
+    const cam = n ? camberOf(n) : null;
+    setText('liveCam', cam === null ? '–' : fmtDeg(cam, 2), cam !== null && Math.abs(cam) > settings.maxTilt ? 'warn' : '');
+    return;
+  }
 
+  const r = measure.result;
   let travel = null;
   if (state === 'waitR') travel = (now - measure.L.t) / 1000;
-  if (state === 'done') travel = r.travel;
+  if (state === 'toeDone') travel = r.travel;
   setText('liveTravel', travel === null ? '–' : t('seconds', travel.toFixed(1)), travel !== null && travel > settings.travelWarn ? 'bad' : '');
 
   let toe = '–';
   if (state === 'waitR' && n && !facing) {
     toe = fmtDeg(totalToe(measure.L.psi, headingOf(n)), 2);
-  } else if (state === 'done') {
+  } else if (state === 'toeDone') {
     toe = fmtDeg(r.toe, 2);
   }
   setText('liveToe', toe);
 }
 
 function renderResult() {
+  renderToeResult();
+  renderCamResult();
+}
+
+function renderToeResult() {
   const r = measure.result;
-  $('result').hidden = !r;
+  $('resultToe').hidden = !r;
   if (!r) return;
   const { L, R } = measure;
 
@@ -1020,10 +1204,8 @@ function renderResult() {
     parts.push(fmtMm(settings.rimInch * 25.4 * Math.tan(r.toe * DEG)) + t('rim', settings.rimInch));
   }
   setText('rToeSub', parts.join(t('sep')));
-  setText('rCamL', `${fmtDeg(r.camL)}(${fmtMin(r.camL)})`);
-  setText('rCamR', `${fmtDeg(r.camR)}(${fmtMin(r.camR)})`);
   setText('rTravel', t('seconds', r.travel.toFixed(1)), r.travel > settings.travelWarn ? 'bad' : '');
-  const sd = (c) => t('spread', (c.sdPsi * 60).toFixed(2), (c.sdCam * 60).toFixed(2), c.count);
+  const sd = (c) => t('spreadH', (c.sdPsi * 60).toFixed(2), c.count);
   setText('rSdL', sd(L));
   setText('rSdR', sd(R));
   setText('rPsi', `${L.psi.toFixed(2)}° / ${R.psi.toFixed(2)}°`);
@@ -1038,6 +1220,23 @@ function renderResult() {
     p.textContent = s;
     return p;
   }));
+}
+
+function renderCamResult() {
+  const { C1, C2 } = measure;
+  $('resultCam').hidden = !C1;
+  if (!C1) return;
+  // 上下逆の2回の平均で、iPhone の付け方の傾きが消える(付け方の傾きは差の半分)
+  const cam = C2 ? (C1.camber + C2.camber) / 2 : C1.camber;
+  setText('rCam', fmtDeg(cam, 2));
+  setText('rCamSub', C2 ? fmtMin(cam) + t('sep') + t('camAvg') : fmtMin(cam));
+  $('rowCam1').hidden = $('rowCam2').hidden = $('rowOffset').hidden = !C2;
+  if (C2) {
+    setText('rCam1', fmtDegMin(C1.camber));
+    setText('rCam2', fmtDegMin(C2.camber));
+    setText('rOffset', fmtDegMin((C1.camber - C2.camber) / 2));
+  }
+  setText('rSdC', [C1, C2].filter(Boolean).map((c) => t('spreadV', (c.sdCam * 60).toFixed(2), c.count)).join(' / '));
 }
 
 /** 等幅フォントでの幅(全角は2) */
@@ -1062,7 +1261,7 @@ function renderDebug(now) {
   const n = sensor.n;
   const still = sensor.stillSince !== null ? t('seconds', ((now - sensor.stillSince) / 1000).toFixed(2)) : '–';
   const lines = [
-    [L.state, state],
+    [L.state, `${state} (${mode})`],
     ['HTTPS', `${window.isSecureContext}  requestPermission ${L.ori}=${hasReq(window.DeviceOrientationEvent)} ${L.mot}=${hasReq(window.DeviceMotionEvent)}`],
     [L.ori, `${sensor.hz.ori.toFixed(1)} Hz  ${L.total} ${sensor.total.ori}  null ${sensor.nulls.ori}  absolute=${o ? o.absolute : '–'}`],
     ['  α', raw(o && o.alpha)],
@@ -1071,9 +1270,10 @@ function renderDebug(now) {
     ['  ' + L.res, `α ${res(sensor.res.alpha)}  β ${res(sensor.res.beta)}  γ ${res(sensor.res.gamma)}`],
     [L.mot, `${sensor.hz.mot.toFixed(1)} Hz  ${L.total} ${sensor.total.mot}  null ${sensor.nulls.mot}  interval=${raw(sensor.interval)}`],
     ['  ω', `α ${fix(r && r.alpha, 3)}  β ${fix(r && r.beta, 3)}  γ ${fix(r && r.gamma, 3)} °/s`],
-    ['  |ω|', `${fix(sensor.rateMag, 3)} °/s (${L.threshold} ${settings.stillThr})`],
+    ['  |ω|', `${fix(sensor.rateMag, 3)} °/s`],
     [L.normal, n ? n.map((v) => v.toFixed(5)).join(', ') : '–'],
     ['ψ', `${n ? headingOf(n).toFixed(3) + '°' : '–'}   ${L.camber} ${n ? camberOf(n).toFixed(3) + '°' : '–'}`],
+    [L.wobble, `${fix(sensor.wobble, 3)}° (${L.tol} ${settings.stillTol}°)`],
     [L.still, `${still}  ${L.buffer(sensor.buf.length)}`],
   ];
   setText('dbg', lines.map(([k, v]) => padLabel(k) + v).join('\n'));

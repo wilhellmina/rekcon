@@ -9,17 +9,26 @@ The name comes from *dead reckoning*: walking around the car with the iPhone in 
 
 ## Status
 
-Phase 1 (total toe of the front wheels) is done. Accuracy testing on a real car has not started yet.
+Phase 1 (total toe of the front wheels, and camber one wheel at a time) is done. Accuracy testing on a real car has not started yet.
 Phase 2 (repeated measurements, loop-closure test, CSV export) and Phase 3 (all four wheels, thrust line)
 are described in [CLAUDE.md](CLAUDE.md) (in Japanese).
 
 ## Usage
 
-1. Fix the iPhone to a jig (an L-shaped bracket or flat plate that rests on the rim lip). Remove the case, or keep it the same every time.
-2. Open the page in Safari, tap “Start sensors” and allow access to motion sensors.
-3. Hold the back of the iPhone against the front-left wheel, with the screen facing away from the car. Hold still, and it beeps once when the reading is recorded.
-4. Walk around the front of the car to the front-right wheel and hold it the same way. It beeps twice and shows the result.
-5. Move quickly (within about 15 seconds). The longer the walk takes, the more drift builds up.
+Toe and camber are measured separately. Choose one at the top of the page, tap “Start sensors” and allow access to motion sensors.
+
+Fix the iPhone to a jig that rests on the rim lip. Put its back against the wheel with the screen facing away from the car,
+and hold still: it beeps when the reading is recorded. Remove the case, or keep it the same every time.
+
+**Toe**
+1. Use a horizontal bar that touches the rim lip at the front and the rear. Keep it level and press it against the front-left wheel (leaning it causes errors).
+2. Once recorded, walk around the front of the car without turning the bar over, and place it on the front-right wheel the same way. It beeps twice and shows the result.
+3. Move quickly (within about 15 seconds). The longer the walk takes, the more drift builds up.
+
+**Camber**
+1. Use a vertical bar that touches the rim lip at the top and the bottom, and place it on the wheel you want to measure. One wheel at a time is fine.
+2. Optionally, measure again with the bar upside down. This cancels out how the iPhone is mounted.
+3. The slope of the ground adds directly to the result, so measure on level ground.
 
 ## Running it
 
