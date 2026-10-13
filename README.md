@@ -23,7 +23,7 @@ iPhone をホイールの面に当てるだけで、トー(とキャンバー)�
 `index.html` の1ファイルだけ。ビルドも外部のライブラリもない。
 
 - 端末は iPhone の Safari だけを考えている
-- センサーは HTTPS でないと使えないので、HTTPS のサーバーに置いて開く
+- センサーは HTTPS でないと使えない。GitHub Pages の https://wilhellmina.github.io/rekcon/ で開く
 - iPhone ではコンソールが見られないので、生のセンサー値やエラーは画面下のデバッグパネルに出る
 
 ## ファイル
