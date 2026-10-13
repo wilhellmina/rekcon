@@ -52,8 +52,19 @@
     padding: calc(12px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
              calc(40px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
   }
-  h1 { font-size: 20px; margin: 0 0 12px; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; }
+  h1 { font-size: 20px; margin: 0; }
   h1 small { font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 6px; }
+  .top select {
+    /* iOS は 16px 未満の入力欄を触ると拡大するので 16px */
+    font: inherit;
+    font-size: 16px;
+    padding: 4px 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel);
+    color: var(--text);
+  }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
   .step { font-size: 13px; color: var(--muted); }
   .prompt { font-size: 26px; font-weight: 700; line-height: 1.3; margin: 2px 0 4px; }
@@ -125,79 +136,85 @@
 </head>
 <body>
 <main>
-  <h1>Reckon<small>アライメント測定(お試し版)</small></h1>
+  <header class="top">
+    <h1>Reckon<small data-i18n="subtitle">アライメント測定(お試し版)</small></h1>
+    <select id="langSel" aria-label="Language / 言語">
+      <option value="ja">日本語</option>
+      <option value="en">English</option>
+    </select>
+  </header>
 
   <section class="card" id="statusBox">
-    <div class="step" id="step">準備</div>
-    <div class="prompt" id="prompt">「センサー開始」を押してください</div>
-    <div class="sub" id="sub">iPhone の Safari で、HTTPS で開いてください。</div>
+    <div class="step" id="step"></div>
+    <div class="prompt" id="prompt"></div>
+    <div class="sub" id="sub"></div>
     <div class="bar" id="bar" hidden><i id="barFill"></i></div>
     <div class="live" id="live" hidden>
-      <div><span>回転の速さ</span><b id="liveRate">–</b></div>
-      <div><span>キャンバー(今)</span><b id="liveCam">–</b></div>
-      <div><span>移動時間</span><b id="liveTravel">–</b></div>
-      <div><span>トータルトー(今)</span><b id="liveToe">–</b></div>
+      <div><span data-i18n="liveRate">回転の速さ</span><b id="liveRate">–</b></div>
+      <div><span data-i18n="liveCam">キャンバー(今)</span><b id="liveCam">–</b></div>
+      <div><span data-i18n="liveTravel">移動時間</span><b id="liveTravel">–</b></div>
+      <div><span data-i18n="liveToe">トータルトー(今)</span><b id="liveToe">–</b></div>
     </div>
   </section>
 
   <div class="actions">
-    <button class="primary" id="btnStart">センサー開始</button>
-    <button id="btnReset" hidden>左からやり直す</button>
-    <button id="btnForceL" hidden>ここが左前輪</button>
-    <button class="primary" id="btnAgain" hidden>もう一度測る</button>
+    <button class="primary" id="btnStart" data-i18n="btnStart">センサー開始</button>
+    <button id="btnReset" data-i18n="btnReset" hidden>左からやり直す</button>
+    <button id="btnForceL" data-i18n="btnForceL" hidden>ここが左前輪</button>
+    <button class="primary" id="btnAgain" data-i18n="btnAgain" hidden>もう一度測る</button>
   </div>
 
   <section class="card result" id="result" hidden>
-    <div class="label">トータルトー(トーイン正)</div>
+    <div class="label" data-i18n="resToe">トータルトー(トーイン正)</div>
     <div class="big" id="rToe">–</div>
     <div id="rToeSub"></div>
     <table>
-      <tr><th>キャンバー 左</th><td id="rCamL"></td></tr>
-      <tr><th>キャンバー 右</th><td id="rCamR"></td></tr>
-      <tr><th>移動時間</th><td id="rTravel"></td></tr>
-      <tr><th>ばらつき 左</th><td id="rSdL"></td></tr>
-      <tr><th>ばらつき 右</th><td id="rSdR"></td></tr>
-      <tr><th>向き ψ 左 / 右</th><td id="rPsi"></td></tr>
+      <tr><th data-i18n="resCamL">キャンバー 左</th><td id="rCamL"></td></tr>
+      <tr><th data-i18n="resCamR">キャンバー 右</th><td id="rCamR"></td></tr>
+      <tr><th data-i18n="resTravel">移動時間</th><td id="rTravel"></td></tr>
+      <tr><th data-i18n="resSdL">ばらつき 左</th><td id="rSdL"></td></tr>
+      <tr><th data-i18n="resSdR">ばらつき 右</th><td id="rSdR"></td></tr>
+      <tr><th data-i18n="resPsi">向き ψ 左 / 右</th><td id="rPsi"></td></tr>
     </table>
     <div class="notes" id="rNotes"></div>
   </section>
 
   <details class="card" id="settingsBox">
-    <summary>設定</summary>
+    <summary data-i18n="settings">設定</summary>
     <div class="inner form">
-      <p class="note">変えた値はこの端末に保存されます。</p>
-      <label><span>静止とみなす回転の速さ</span>
-        <span><input id="setStillThr" type="number" inputmode="decimal" step="0.1"> <span class="unit">°/s 以下</span></span></label>
-      <label><span>静止を続ける時間</span>
-        <span><input id="setStillSec" type="number" inputmode="decimal" step="0.1"> <span class="unit">秒</span></span></label>
-      <label><span>移動時間の警告</span>
-        <span><input id="setTravelWarn" type="number" inputmode="decimal" step="1"> <span class="unit">秒</span></span></label>
-      <label><span>垂直からの傾きの許容</span>
+      <p class="note" data-i18n="settingsNote">変えた値はこの端末に保存されます。</p>
+      <label><span data-i18n="setStillThr">静止とみなす回転の速さ</span>
+        <span><input id="setStillThr" type="number" inputmode="decimal" step="0.1"> <span class="unit" data-i18n="unitStillThr">°/s 以下</span></span></label>
+      <label><span data-i18n="setStillSec">静止を続ける時間</span>
+        <span><input id="setStillSec" type="number" inputmode="decimal" step="0.1"> <span class="unit" data-i18n="unitSec">秒</span></span></label>
+      <label><span data-i18n="setTravelWarn">移動時間の警告</span>
+        <span><input id="setTravelWarn" type="number" inputmode="decimal" step="1"> <span class="unit" data-i18n="unitSec">秒</span></span></label>
+      <label><span data-i18n="setMaxTilt">垂直からの傾きの許容</span>
         <span><input id="setMaxTilt" type="number" inputmode="decimal" step="1"> <span class="unit">°</span></span></label>
-      <label><span>リム径(空欄なら mm 換算なし)</span>
-        <span><input id="setRim" type="number" inputmode="decimal" step="0.5"> <span class="unit">インチ</span></span></label>
-      <button id="btnDefaults">初期値に戻す</button>
+      <label><span data-i18n="setRim">リム径(空欄なら mm 換算なし)</span>
+        <span><input id="setRim" type="number" inputmode="decimal" step="0.5"> <span class="unit" data-i18n="unitInch">インチ</span></span></label>
+      <button id="btnDefaults" data-i18n="btnDefaults">初期値に戻す</button>
     </div>
   </details>
 
   <details class="card" id="debugBox" open>
-    <summary>デバッグ</summary>
+    <summary data-i18n="debug">デバッグ</summary>
     <div class="inner">
       <pre class="dbg" id="dbg"></pre>
       <div class="log" id="log"></div>
-      <button id="btnCopy">表示とログをコピー</button>
+      <button id="btnCopy" data-i18n="btnCopy">表示とログをコピー</button>
     </div>
   </details>
 
   <details class="card">
-    <summary>使い方</summary>
+    <summary data-i18n="help">使い方</summary>
     <div class="inner">
       <ol class="help">
-        <li>治具(リムの縁に当たる L字や平板)に iPhone を固定します。ケースは外すか、毎回同じ状態にします。</li>
-        <li>「センサー開始」を押して、センサーの使用を許可します。</li>
-        <li>左前輪に iPhone の背面を当て、画面を車の外側に向けます。止めておくとピッと鳴って記録されます。</li>
-        <li>そのまま車の前を回って右前輪へ。背面を当てて止めると、ピピッと鳴って結果が出ます。</li>
-        <li>移動は手早く(目安 15 秒以内)。時間が長いほど、ずれ(ドリフト)が溜まります。</li>
+        <li data-i18n="help1"></li>
+        <li data-i18n="help2"></li>
+        <li data-i18n="help3"></li>
+        <li data-i18n="help4"></li>
+        <li data-i18n="help5"></li>
       </ol>
     </div>
   </details>
@@ -273,6 +290,234 @@ function spreadOf(ns, mean) {
 }
 // --- math:end ---
 
+// ---- 文言(日本語と英語。キーは両方にそろえる。引数のある文言は関数) ----
+const I18N = {
+  ja: {
+    subtitle: 'アライメント測定(お試し版)',
+    liveRate: '回転の速さ',
+    liveCam: 'キャンバー(今)',
+    liveTravel: '移動時間',
+    liveToe: 'トータルトー(今)',
+    btnStart: 'センサー開始',
+    btnReset: '左からやり直す',
+    btnForceL: 'ここが左前輪',
+    btnAgain: 'もう一度測る',
+    resToe: 'トータルトー(トーイン正)',
+    resCamL: 'キャンバー 左',
+    resCamR: 'キャンバー 右',
+    resTravel: '移動時間',
+    resSdL: 'ばらつき 左',
+    resSdR: 'ばらつき 右',
+    resPsi: '向き ψ 左 / 右',
+    settings: '設定',
+    settingsNote: '変えた値はこの端末に保存されます。',
+    setStillThr: '静止とみなす回転の速さ',
+    unitStillThr: '°/s 以下',
+    setStillSec: '静止を続ける時間',
+    unitSec: '秒',
+    setTravelWarn: '移動時間の警告',
+    setMaxTilt: '垂直からの傾きの許容',
+    setRim: 'リム径(空欄なら mm 換算なし)',
+    unitInch: 'インチ',
+    btnDefaults: '初期値に戻す',
+    debug: 'デバッグ',
+    btnCopy: '表示とログをコピー',
+    help: '使い方',
+    help1: '治具(リムの縁に当たる L字や平板)に iPhone を固定します。ケースは外すか、毎回同じ状態にします。',
+    help2: '「センサー開始」を押して、センサーの使用を許可します。',
+    help3: '左前輪に iPhone の背面を当て、画面を車の外側に向けます。止めておくとピッと鳴って記録されます。',
+    help4: 'そのまま車の前を回って右前輪へ。背面を当てて止めると、ピピッと鳴って結果が出ます。',
+    help5: '移動は手早く(目安 15 秒以内)。時間が長いほど、ずれ(ドリフト)が溜まります。',
+
+    steps: {
+      idle: ['準備', '「センサー開始」を押してください'],
+      waitL: ['1 / 2 左前輪', '左前輪に当ててください'],
+      waitR: ['2 / 2 右前輪', '右前輪へ移動して当ててください'],
+      done: ['結果', '測定できました'],
+    },
+    idleSub: 'iPhone の Safari で、HTTPS で開いてください。',
+    notHttps: 'HTTPS で開いていません。センサーは HTTPS でないと使えません。',
+    denied: 'センサーの使用が許可されませんでした。タブを閉じて開き直してから、もう一度「センサー開始」を押してください。',
+    waitingSensor: 'センサーの値を待っています…',
+    stillProgress: (s, max) => `静止 ${s} / ${max} 秒`,
+    placeHint: '背面を当て、画面を外に向けて止めてください',
+    doneHint: '次を測るときは、左前輪に戻ってから「もう一度測る」を押してください',
+    facingPrevR: 'まだ右前輪の向きです。左前輪へ移動してください',
+    facingMove: '左前輪を記録しました。車の前を回ってください',
+    facingStill: (off) => `右前輪の向きではありません(左前輪の反対から ${off}° ずれ)`,
+    guardTilt: (deg, max) => `垂直から ${deg}° 傾いています(許容 ${max}°)`,
+    guardFew: '向きの値が足りません',
+    noticeHidden: '移動中に画面が隠れたので、左前輪からやり直します',
+    toeIn: 'トーイン',
+    toeOut: 'トーアウト',
+    sep: ' ・ ',
+    rim: (inch) => `(リム ${inch} インチ)`,
+    seconds: (s) => `${s} 秒`,
+    spread: (h, v, n) => `水平 ${h}′ ・ 縦 ${v}′(${n} 個)`,
+    noteTravel: (s, max) => `移動に ${s} 秒かかりました(目安 ${max} 秒以内)。ドリフトが溜まっているかもしれません。`,
+
+    logError: (m, l, c) => `エラー: ${m} (${l}:${c})`,
+    logPromiseError: (m) => `エラー(Promise): ${m}`,
+    logSaveFail: (m) => `設定を保存できませんでした: ${m}`,
+    logBadInput: '設定の値を数として読めません',
+    logOutOfRange: (a, b) => `設定の値が範囲外です(${a}〜${b})`,
+    logAudioSession: (m) => `audioSession を設定できませんでした: ${m}`,
+    logNoWebAudio: 'WebAudio が使えないので、音は鳴りません',
+    logAudioFail: (m) => `音の準備に失敗: ${m}`,
+    logAudioResume: (st) => `音を鳴らせませんでした(${st})。ボタンを押すと戻ります`,
+    logNoWakeLock: '画面の自動ロックを止められません(Wake Lock 非対応)。自動ロックを長めにしてください',
+    logWakeLockFail: (m) => `画面を点けたままにできませんでした: ${m}`,
+    logGap: (s) => `動きの値が ${s} 秒途切れたので、静止を数え直します`,
+    logStartFail: (m) => `センサーを始められませんでした: ${m}`,
+    logNotHttps: 'HTTPS で開いていないので、センサーが使えないかもしれません',
+    logNoEvents: 'このブラウザはセンサーのイベントに対応していません',
+    logPermission: (o, m) => `センサーの許可: 向き=${o} / 動き=${m}`,
+    permNotNeeded: '不要',
+    permFailed: (m) => `失敗 ${m}`,
+    logNoOri: '向き(deviceorientation)の値が届きません',
+    logNoMot: '動き(devicemotion)の値が届きません。静止を判定できません',
+    capDesc: (psi, cam, sh, sv, n) => `ψ=${psi}° キャンバー=${cam}° σ水平=${sh}′ σ縦=${sv}′ (${n}個)`,
+    logCapL: (d) => `左を記録: ${d}`,
+    logCapR: (d) => `右を記録: ${d}`,
+    logResult: (toe, s) => `結果: トータルトー=${toe}° 移動=${s}秒`,
+    logRestart: '左からやり直し',
+    logForceL: '前回の右前輪の向きを使わずに、左前輪を待ちます',
+    logHidden: '画面が隠れました',
+    logCopied: 'コピーしました',
+    logCopyFail: (m) => `コピーできませんでした: ${m}`,
+
+    dbg: {
+      state: '状態', ori: '向き', mot: '動き', res: '分解能', normal: '法線 n', still: '静止',
+      total: '計', yes: 'あり', no: 'なし', threshold: 'しきい値', camber: 'キャンバー',
+      buffer: (n) => `バッファ ${n} 個`,
+    },
+  },
+
+  en: {
+    subtitle: 'Alignment check (trial)',
+    liveRate: 'Rotation rate',
+    liveCam: 'Camber (now)',
+    liveTravel: 'Travel time',
+    liveToe: 'Total toe (now)',
+    btnStart: 'Start sensors',
+    btnReset: 'Restart from left',
+    btnForceL: 'This is the left wheel',
+    btnAgain: 'Measure again',
+    resToe: 'Total toe (toe-in positive)',
+    resCamL: 'Camber, left',
+    resCamR: 'Camber, right',
+    resTravel: 'Travel time',
+    resSdL: 'Spread, left',
+    resSdR: 'Spread, right',
+    resPsi: 'Heading ψ, left / right',
+    settings: 'Settings',
+    settingsNote: 'Changes are saved on this device.',
+    setStillThr: 'Still when rotation is at most',
+    unitStillThr: '°/s',
+    setStillSec: 'Hold still for',
+    unitSec: 's',
+    setTravelWarn: 'Warn when travel takes over',
+    setMaxTilt: 'Allowed tilt from vertical',
+    setRim: 'Rim diameter (blank: no mm value)',
+    unitInch: 'in',
+    btnDefaults: 'Reset to defaults',
+    debug: 'Debug',
+    btnCopy: 'Copy panel and log',
+    help: 'How to use',
+    help1: 'Fix the iPhone to a jig (an L-shaped bracket or flat plate that rests on the rim lip). Remove the case, or keep it the same every time.',
+    help2: 'Tap “Start sensors” and allow access to motion sensors.',
+    help3: 'Hold the back of the iPhone against the front-left wheel, with the screen facing away from the car. Hold still, and it beeps once when the reading is recorded.',
+    help4: 'Walk around the front of the car to the front-right wheel and hold it the same way. It beeps twice and shows the result.',
+    help5: 'Move quickly (within about 15 seconds). The longer the walk takes, the more drift builds up.',
+
+    steps: {
+      idle: ['Ready', 'Tap “Start sensors”'],
+      waitL: ['1 / 2 Front left', 'Place it on the front-left wheel'],
+      waitR: ['2 / 2 Front right', 'Move to the front-right wheel and place it'],
+      done: ['Result', 'Measured'],
+    },
+    idleSub: 'Open this page in Safari on iPhone, over HTTPS.',
+    notHttps: 'This page is not open over HTTPS. Motion sensors only work over HTTPS.',
+    denied: 'Sensor access was not allowed. Close the tab, open the page again, and tap “Start sensors” again.',
+    waitingSensor: 'Waiting for sensor values…',
+    stillProgress: (s, max) => `Still ${s} / ${max} s`,
+    placeHint: 'Put the back against the wheel, screen facing out, and hold still',
+    doneHint: 'To measure again, go back to the front-left wheel and tap “Measure again”',
+    facingPrevR: 'Still facing the front-right wheel. Move to the front-left wheel',
+    facingMove: 'Front left recorded. Walk around the front of the car',
+    facingStill: (off) => `Not facing the front-right wheel (${off}° off from opposite the front left)`,
+    guardTilt: (deg, max) => `Tilted ${deg}° from vertical (limit ${max}°)`,
+    guardFew: 'Not enough orientation values',
+    noticeHidden: 'The screen was hidden while moving, so start again from the front-left wheel',
+    toeIn: 'toe-in',
+    toeOut: 'toe-out',
+    sep: ' · ',
+    rim: (inch) => ` (rim ${inch} in)`,
+    seconds: (s) => `${s} s`,
+    spread: (h, v, n) => `horizontal ${h}′ · vertical ${v}′ (${n} samples)`,
+    noteTravel: (s, max) => `Travel took ${s} s (aim for ${max} s or less). Drift may have built up.`,
+
+    logError: (m, l, c) => `Error: ${m} (${l}:${c})`,
+    logPromiseError: (m) => `Error (Promise): ${m}`,
+    logSaveFail: (m) => `Could not save settings: ${m}`,
+    logBadInput: 'The setting is not a number',
+    logOutOfRange: (a, b) => `The setting is out of range (${a}–${b})`,
+    logAudioSession: (m) => `Could not set audioSession: ${m}`,
+    logNoWebAudio: 'WebAudio is not available, so there will be no beeps',
+    logAudioFail: (m) => `Could not prepare audio: ${m}`,
+    logAudioResume: (st) => `Could not beep (${st}). Tapping a button brings it back`,
+    logNoWakeLock: 'Cannot keep the screen on (no Wake Lock). Set Auto-Lock to a longer time',
+    logWakeLockFail: (m) => `Could not keep the screen on: ${m}`,
+    logGap: (s) => `Motion values stopped for ${s} s, so stillness is counted again`,
+    logStartFail: (m) => `Could not start sensors: ${m}`,
+    logNotHttps: 'Not open over HTTPS, so sensors may not work',
+    logNoEvents: 'This browser does not support sensor events',
+    logPermission: (o, m) => `Sensor permission: orientation=${o} / motion=${m}`,
+    permNotNeeded: 'not needed',
+    permFailed: (m) => `failed ${m}`,
+    logNoOri: 'No orientation (deviceorientation) values are arriving',
+    logNoMot: 'No motion (devicemotion) values are arriving, so stillness cannot be detected',
+    capDesc: (psi, cam, sh, sv, n) => `ψ=${psi}° camber=${cam}° σh=${sh}′ σv=${sv}′ (${n} samples)`,
+    logCapL: (d) => `Recorded left: ${d}`,
+    logCapR: (d) => `Recorded right: ${d}`,
+    logResult: (toe, s) => `Result: total toe=${toe}° travel=${s} s`,
+    logRestart: 'Restart from left',
+    logForceL: 'Ignoring the previous front-right heading; waiting for the front-left wheel',
+    logHidden: 'The screen was hidden',
+    logCopied: 'Copied',
+    logCopyFail: (m) => `Could not copy: ${m}`,
+
+    dbg: {
+      state: 'state', ori: 'orient', mot: 'motion', res: 'resol.', normal: 'normal n', still: 'still',
+      total: 'total', yes: 'yes', no: 'no', threshold: 'threshold', camber: 'camber',
+      buffer: (n) => `buffer ${n} samples`,
+    },
+  },
+};
+
+const LANG_KEY = 'reckon.lang.v1';
+const isLang = (v) => v === 'ja' || v === 'en';
+
+function loadLang() {
+  try {
+    const saved = localStorage.getItem(LANG_KEY);
+    if (isLang(saved)) return saved;
+  } catch (e) {
+    // 読めなければ端末の言語で決める
+  }
+  return String(navigator.language || '').toLowerCase().startsWith('ja') ? 'ja' : 'en';
+}
+
+let lang = loadLang();
+
+/** 今の言語の文言。引数のある文言は関数にしてある */
+function t(key, ...args) {
+  const v = I18N[lang][key] ?? I18N.ja[key];
+  return typeof v === 'function' ? v(...args) : v;
+}
+
+const errMsg = (e) => (e && e.message ? e.message : String(e));
+
 // ---- 表示の書式 ----
 const MINUS = '−';
 function signed(x, digits) {
@@ -285,9 +530,9 @@ const fmtMin = (d) => signed(d * 60, 1) + '′';
 const fmtMm = (mm) => signed(mm, 1) + ' mm';
 
 // ---- ログ(iPhone ではコンソールが見られないので、画面のデバッグパネルに出す) ----
+// 書いたときの言語のまま残る(言語を切り替えても書き直さない)
 const T0 = performance.now();
 const logLines = [];
-
 const LOG_MAX = 100;
 
 function log(msg, level = 'info') {
@@ -302,11 +547,8 @@ function log(msg, level = 'info') {
   while (el.childElementCount > LOG_MAX) el.lastElementChild.remove();
 }
 
-window.addEventListener('error', (e) => log(`エラー: ${e.message} (${e.lineno}:${e.colno})`, 'bad'));
-window.addEventListener('unhandledrejection', (e) => {
-  const r = e.reason;
-  log('エラー(Promise): ' + (r && r.message ? r.message : String(r)), 'bad');
-});
+window.addEventListener('error', (e) => log(t('logError', e.message, e.lineno, e.colno), 'bad'));
+window.addEventListener('unhandledrejection', (e) => log(t('logPromiseError', errMsg(e.reason)), 'bad'));
 
 // ---- 設定 ----
 const SETTINGS_KEY = 'reckon.settings.v1';
@@ -333,7 +575,7 @@ function saveSettings() {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   } catch (e) {
-    log('設定を保存できませんでした: ' + e.message, 'warn');
+    log(t('logSaveFail', e.message), 'warn');
   }
 }
 
@@ -352,7 +594,7 @@ for (const [k, id] of Object.entries(SETTING_INPUTS)) {
     const raw = $(id).value.trim();
     if ($(id).validity.badInput) {
       // 「15,5」のように数として読めない入力は、value が空になる。空欄(リム径を消す)と区別する
-      log('設定の値を数として読めません', 'warn');
+      log(t('logBadInput'), 'warn');
     } else if (k === 'rimInch' && raw === '') {
       settings.rimInch = null;
     } else {
@@ -360,7 +602,7 @@ for (const [k, id] of Object.entries(SETTING_INPUTS)) {
       if (inRange(k, v)) {
         settings[k] = v;
       } else {
-        log(`設定の値が範囲外です(${LIMITS[k][0]}〜${LIMITS[k][1]})`, 'warn');
+        log(t('logOutOfRange', LIMITS[k][0], LIMITS[k][1]), 'warn');
       }
     }
     fillSettingInputs();
@@ -385,18 +627,18 @@ function initAudio() {
     // 消音スイッチが入っていても鳴らす(Safari 16.4 以降)
     if (navigator.audioSession) navigator.audioSession.type = 'playback';
   } catch (e) {
-    log('audioSession を設定できませんでした: ' + e.message, 'warn');
+    log(t('logAudioSession', e.message), 'warn');
   }
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) {
-      log('WebAudio が使えないので、音は鳴りません', 'warn');
+      log(t('logNoWebAudio'), 'warn');
       return;
     }
     if (!audioCtx) audioCtx = new AC();
-    audioCtx.resume().catch((e) => log('音の準備に失敗: ' + e.message, 'warn'));
+    audioCtx.resume().catch((e) => log(t('logAudioFail', e.message), 'warn'));
   } catch (e) {
-    log('音の準備に失敗: ' + e.message, 'warn');
+    log(t('logAudioFail', e.message), 'warn');
   }
 }
 
@@ -419,7 +661,7 @@ function beep(freq, delay = 0, dur = 0.15) {
 function signal(times) {
   if (audioCtx && audioCtx.state !== 'running') {
     const st = audioCtx.state;
-    audioCtx.resume().catch(() => log(`音を鳴らせませんでした(${st})。ボタンを押すと戻ります`, 'warn'));
+    audioCtx.resume().catch(() => log(t('logAudioResume', st), 'warn'));
   }
   for (let i = 0; i < times; i++) beep(1046, i * 0.2);
   const box = $('statusBox');
@@ -434,14 +676,14 @@ let wakeLockWarned = false;
 async function keepAwake() {
   if (!('wakeLock' in navigator)) {
     // 画面を戻すたびに呼ばれるので、同じ警告は1回だけ
-    if (!wakeLockWarned) log('画面の自動ロックを止められません(Wake Lock 非対応)。自動ロックを長めにしてください', 'warn');
+    if (!wakeLockWarned) log(t('logNoWakeLock'), 'warn');
     wakeLockWarned = true;
     return;
   }
   try {
     await navigator.wakeLock.request('screen');
   } catch (e) {
-    log('画面を点けたままにできませんでした: ' + e.message, 'warn');
+    log(t('logWakeLockFail', e.message), 'warn');
   }
 }
 
@@ -469,7 +711,7 @@ function onOrientation(e) {
     sensor.nulls.ori++;
     return;
   }
-  const t = performance.now();
+  const now = performance.now();
   const prev = sensor.ori;
   if (prev) {
     for (const k of ['alpha', 'beta', 'gamma']) {
@@ -481,9 +723,9 @@ function onOrientation(e) {
   sensor.n = normalFromEuler(e.alpha, e.beta, e.gamma);
   sensor.total.ori++;
   sensor.win.ori++;
-  sensor.buf.push({ t, n: sensor.n });
+  sensor.buf.push({ t: now, n: sensor.n });
   const keep = Math.max(10, settings.stillSec + 3) * 1000;
-  while (sensor.buf.length && sensor.buf[0].t < t - keep) sensor.buf.shift();
+  while (sensor.buf.length && sensor.buf[0].t < now - keep) sensor.buf.shift();
 }
 
 function onMotion(e) {
@@ -492,53 +734,59 @@ function onMotion(e) {
     sensor.nulls.mot++;
     return;
   }
-  const t = performance.now();
+  const now = performance.now();
   sensor.rate = { alpha: r.alpha, beta: r.beta, gamma: r.gamma };
   sensor.rateMag = Math.hypot(r.alpha, r.beta, r.gamma);
   sensor.interval = e.interval;
   sensor.total.mot++;
   sensor.win.mot++;
   // 値が途切れていた間に動いたかどうかは分からないので、静止は数え直す
-  if (sensor.lastMot !== null && t - sensor.lastMot > MAX_GAP_MS) {
-    if (sensor.stillSince !== null) log(`動きの値が ${((t - sensor.lastMot) / 1000).toFixed(1)} 秒途切れたので、静止を数え直します`);
+  if (sensor.lastMot !== null && now - sensor.lastMot > MAX_GAP_MS) {
+    if (sensor.stillSince !== null) log(t('logGap', ((now - sensor.lastMot) / 1000).toFixed(1)));
     sensor.stillSince = null;
   }
-  sensor.lastMot = t;
+  sensor.lastMot = now;
   if (sensor.rateMag <= settings.stillThr) {
-    if (sensor.stillSince === null) sensor.stillSince = t;
+    if (sensor.stillSince === null) sensor.stillSince = now;
   } else {
     sensor.stillSince = null;
   }
-  tryCapture(t);
+  tryCapture(now);
 }
+
+const NOT_NEEDED = 'not-needed'; // requestPermission がない(iOS 以外)
+let permDenied = false;
 
 async function startSensors() {
   $('btnStart').disabled = true;
   try {
     await startSensorsInner();
   } catch (e) {
-    log('センサーを始められませんでした: ' + (e && e.message ? e.message : e), 'bad');
+    log(t('logStartFail', errMsg(e)), 'bad');
     $('btnStart').disabled = false;
   }
 }
 
 async function startSensorsInner() {
   initAudio();
-  if (!window.isSecureContext) log('HTTPS で開いていないので、センサーが使えないかもしれません', 'bad');
+  if (!window.isSecureContext) log(t('logNotHttps'), 'bad');
 
   const DOE = window.DeviceOrientationEvent;
   const DME = window.DeviceMotionEvent;
-  if (!DOE || !DME) log('このブラウザはセンサーのイベントに対応していません', 'bad');
+  if (!DOE || !DME) log(t('logNoEvents'), 'bad');
 
   // 2つともタップの処理の中で同時に呼ぶ(await を挟むとタップ起点でなくなる)
-  const ask = (C) => (C && typeof C.requestPermission === 'function' ? C.requestPermission() : Promise.resolve('不要'));
+  const ask = (C) => (C && typeof C.requestPermission === 'function' ? C.requestPermission() : Promise.resolve(NOT_NEEDED));
   const [o, m] = await Promise.allSettled([ask(DOE), ask(DME)]);
-  const desc = (r) => (r.status === 'fulfilled' ? r.value : '失敗 ' + (r.reason && r.reason.message ? r.reason.message : r.reason));
-  log(`センサーの許可: 向き=${desc(o)} / 動き=${desc(m)}`);
-  const ok = (r) => r.status === 'fulfilled' && (r.value === 'granted' || r.value === '不要');
+  const desc = (r) => {
+    if (r.status !== 'fulfilled') return t('permFailed', errMsg(r.reason));
+    return r.value === NOT_NEEDED ? t('permNotNeeded') : r.value;
+  };
+  log(t('logPermission', desc(o), desc(m)));
+  const ok = (r) => r.status === 'fulfilled' && (r.value === 'granted' || r.value === NOT_NEEDED);
   if (!ok(o) || !ok(m)) {
-    $('sub').textContent = 'センサーの使用が許可されませんでした。タブを閉じて開き直してから、もう一度「センサー開始」を押してください。';
-    $('sub').className = 'sub warn';
+    permDenied = true;
+    renderStatic();
     $('btnStart').disabled = false;
     return;
   }
@@ -550,8 +798,8 @@ async function startSensorsInner() {
   setState('waitL');
 
   setTimeout(() => {
-    if (sensor.total.ori === 0) log('向き(deviceorientation)の値が届きません', 'bad');
-    if (sensor.total.mot === 0) log('動き(devicemotion)の値が届きません。静止を判定できません', 'bad');
+    if (sensor.total.ori === 0) log(t('logNoOri'), 'bad');
+    if (sensor.total.mot === 0) log(t('logNoMot'), 'bad');
   }, 2000);
 }
 
@@ -561,8 +809,8 @@ const FACING_TOL = 45; // 右前輪は左前輪のほぼ反対を向くはず。
 const MAX_GAP_MS = 300; // 動きの値がこれより長く途切れたら、静止を数え直す
 
 let state = 'idle';
-let guard = '';  // 静止しているのに記録しない理由
-let notice = ''; // 左前輪を待つ画面に出すお知らせ(やり直しになった理由など)
+let guard = '';  // 静止しているのに記録しない理由(動きの値が届くたびに作り直す)
+let notice = ''; // 左前輪を待つ画面に出すお知らせのキー(やり直しになった理由など)
 const measure = { L: null, R: null, result: null, prevR: null };
 
 function setState(s) {
@@ -585,31 +833,26 @@ function setState(s) {
 function facingProblem(n) {
   const psi = headingOf(n);
   if (state === 'waitL' && measure.prevR && Math.abs(wrap180(psi - measure.prevR.psi)) < FACING_TOL) {
-    const msg = 'まだ右前輪の向きです。左前輪へ移動してください';
-    return { kind: 'prevR', move: msg, still: msg };
+    return { kind: 'prevR', move: t('facingPrevR'), still: t('facingPrevR') };
   }
   if (state === 'waitR') {
     const off = Math.abs(wrap180(psi - measure.L.psi - 180));
     if (off > FACING_TOL) {
-      return {
-        kind: 'notOpposite',
-        move: '左前輪を記録しました。車の前を回ってください',
-        // ずれの大きさは、ドリフトで外れたときの手がかり
-        still: `右前輪の向きではありません(左前輪の反対から ${off.toFixed(0)}° ずれ)`,
-      };
+      // ずれの大きさは、ドリフトで外れたときの手がかり
+      return { kind: 'notOpposite', move: t('facingMove'), still: t('facingStill', off.toFixed(0)) };
     }
   }
   return null;
 }
 
-function tryCapture(t) {
+function tryCapture(now) {
   guard = '';
   if (state !== 'waitL' && state !== 'waitR') return;
-  if (sensor.stillSince === null || t - sensor.stillSince < settings.stillSec * 1000) return;
+  if (sensor.stillSince === null || now - sensor.stillSince < settings.stillSec * 1000) return;
 
   const samples = sensor.buf.filter((s) => s.t >= sensor.stillSince);
   if (samples.length < 5) {
-    guard = '向きの値が足りません';
+    guard = t('guardFew');
     return;
   }
   const ns = samples.map((s) => s.n);
@@ -624,24 +867,24 @@ function tryCapture(t) {
     return;
   }
   if (Math.abs(cam) > settings.maxTilt) {
-    guard = `垂直から ${Math.abs(cam).toFixed(0)}° 傾いています(許容 ${settings.maxTilt}°)`;
+    guard = t('guardTilt', Math.abs(cam).toFixed(0), settings.maxTilt);
     return;
   }
 
   const sp = spreadOf(ns, mean);
-  const cap = { t, n: mean, psi, camber: cam, sdPsi: sp.psi, sdCam: sp.cam, count: samples.length };
-  const desc = `ψ=${psi.toFixed(3)}° キャンバー=${cam.toFixed(3)}° σ水平=${(sp.psi * 60).toFixed(2)}′ σ縦=${(sp.cam * 60).toFixed(2)}′ (${samples.length}個)`;
+  const cap = { t: now, n: mean, psi, camber: cam, sdPsi: sp.psi, sdCam: sp.cam, count: samples.length };
+  const desc = t('capDesc', psi.toFixed(3), cam.toFixed(3), (sp.psi * 60).toFixed(2), (sp.cam * 60).toFixed(2), samples.length);
   if (state === 'waitL') {
     measure.L = cap;
-    log('左を記録: ' + desc);
+    log(t('logCapL', desc));
     signal(1);
     setState('waitR');
   } else {
     measure.R = cap;
     const L = measure.L;
     measure.result = { toe: totalToe(L.psi, cap.psi), camL: L.camber, camR: cap.camber, travel: (cap.t - L.t) / 1000 };
-    log('右を記録: ' + desc);
-    log(`結果: トータルトー=${measure.result.toe.toFixed(3)}° 移動=${measure.result.travel.toFixed(1)}秒`);
+    log(t('logCapR', desc));
+    log(t('logResult', measure.result.toe.toFixed(3), measure.result.travel.toFixed(1)));
     signal(2);
     setState('done');
   }
@@ -651,7 +894,7 @@ function tryCapture(t) {
 $('btnStart').addEventListener('click', startSensors);
 $('btnReset').addEventListener('click', () => {
   initAudio();
-  log('左からやり直し');
+  log(t('logRestart'));
   setState('waitL');
 });
 $('btnAgain').addEventListener('click', () => {
@@ -662,7 +905,7 @@ $('btnForceL').addEventListener('click', () => {
   initAudio();
   measure.prevR = null;
   sensor.stillSince = null;
-  log('前回の右前輪の向きを使わずに、左前輪を待ちます');
+  log(t('logForceL'));
 });
 
 document.addEventListener('visibilitychange', () => {
@@ -673,10 +916,10 @@ document.addEventListener('visibilitychange', () => {
     measure.prevR = null;
     if (state === 'waitR') {
       setState('waitL');
-      notice = '移動中に画面が隠れたので、左前輪からやり直します';
-      log(notice, 'warn');
+      notice = 'noticeHidden';
+      log(t(notice), 'warn');
     } else {
-      log('画面が隠れました');
+      log(t('logHidden'));
     }
   } else if (sensor.on) {
     keepAwake();
@@ -684,13 +927,6 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ---- 描画 ----
-const STEPS = {
-  idle: ['準備', '「センサー開始」を押してください'],
-  waitL: ['1 / 2 左前輪', '左前輪に当ててください'],
-  waitR: ['2 / 2 右前輪', '右前輪へ移動して当ててください'],
-  done: ['結果', '測定できました'],
-};
-
 function setText(id, text, cls) {
   const el = $(id);
   if (el.textContent !== text) el.textContent = text;
@@ -698,8 +934,14 @@ function setText(id, text, cls) {
 }
 
 function renderStatic() {
-  setText('step', STEPS[state][0]);
-  setText('prompt', STEPS[state][1]);
+  const [step, prompt] = t('steps')[state];
+  setText('step', step);
+  setText('prompt', prompt);
+  if (state === 'idle') {
+    if (!window.isSecureContext) setText('sub', t('notHttps'), 'sub warn');
+    else if (permDenied) setText('sub', t('denied'), 'sub warn');
+    else setText('sub', t('idleSub'), 'sub');
+  }
   $('btnStart').hidden = state !== 'idle';
   $('btnReset').hidden = state !== 'waitR';
   $('btnAgain').hidden = state !== 'done';
@@ -707,10 +949,10 @@ function renderStatic() {
   $('live').hidden = state === 'idle';
 }
 
-function renderLive(t) {
+function renderLive(now) {
   if (state === 'idle') return;
   const waiting = state === 'waitL' || state === 'waitR';
-  const still = sensor.stillSince !== null ? Math.max(0, (t - sensor.stillSince) / 1000) : 0;
+  const still = sensor.stillSince !== null ? Math.max(0, (now - sensor.stillSince) / 1000) : 0;
   const n = sensor.n;
   const r = measure.result;
   const fp = waiting && n ? facingProblem(n) : null;
@@ -725,21 +967,21 @@ function renderLive(t) {
   let sub;
   let warn = false;
   if (waiting && sensor.total.ori === 0) {
-    sub = 'センサーの値を待っています…';
+    sub = t('waitingSensor');
   } else if (waiting && guard) {
     sub = guard;
     warn = true;
   } else if (facing) {
     sub = facing;
   } else if (waiting && still > 0) {
-    sub = `静止 ${still.toFixed(1)} / ${settings.stillSec} 秒`;
+    sub = t('stillProgress', still.toFixed(1), settings.stillSec);
   } else if (notice) {
-    sub = notice;
+    sub = t(notice);
     warn = true;
   } else if (waiting) {
-    sub = '背面を当て、画面を外に向けて止めてください';
+    sub = t('placeHint');
   } else {
-    sub = '次を測るときは、左前輪に戻ってから「もう一度測る」を押してください';
+    sub = t('doneHint');
   }
   setText('sub', sub, warn ? 'sub warn' : 'sub');
 
@@ -750,9 +992,9 @@ function renderLive(t) {
   setText('liveCam', cam === null ? '–' : fmtDeg(cam, 1), cam !== null && Math.abs(cam) > settings.maxTilt ? 'warn' : '');
 
   let travel = null;
-  if (state === 'waitR') travel = (t - measure.L.t) / 1000;
+  if (state === 'waitR') travel = (now - measure.L.t) / 1000;
   if (state === 'done') travel = r.travel;
-  setText('liveTravel', travel === null ? '–' : travel.toFixed(1) + ' 秒', travel !== null && travel > settings.travelWarn ? 'bad' : '');
+  setText('liveTravel', travel === null ? '–' : t('seconds', travel.toFixed(1)), travel !== null && travel > settings.travelWarn ? 'bad' : '');
 
   let toe = '–';
   if (state === 'waitR' && n && !facing) {
@@ -773,22 +1015,22 @@ function renderResult() {
   // イン・アウトは、細かいほうの表示(分)に合わせて決める。0 に丸まるときは付けない
   const toeMin = Number((r.toe * 60).toFixed(1));
   const parts = [fmtMin(r.toe)];
-  if (toeMin !== 0) parts.push(toeMin > 0 ? 'トーイン' : 'トーアウト');
+  if (toeMin !== 0) parts.push(toeMin > 0 ? t('toeIn') : t('toeOut'));
   if (settings.rimInch !== null) {
-    parts.push(`${fmtMm(settings.rimInch * 25.4 * Math.tan(r.toe * DEG))}(リム ${settings.rimInch} インチ)`);
+    parts.push(fmtMm(settings.rimInch * 25.4 * Math.tan(r.toe * DEG)) + t('rim', settings.rimInch));
   }
-  setText('rToeSub', parts.join(' ・ '));
+  setText('rToeSub', parts.join(t('sep')));
   setText('rCamL', `${fmtDeg(r.camL)}(${fmtMin(r.camL)})`);
   setText('rCamR', `${fmtDeg(r.camR)}(${fmtMin(r.camR)})`);
-  setText('rTravel', r.travel.toFixed(1) + ' 秒', r.travel > settings.travelWarn ? 'bad' : '');
-  const sd = (c) => `水平 ${(c.sdPsi * 60).toFixed(2)}′ ・ 縦 ${(c.sdCam * 60).toFixed(2)}′(${c.count} 個)`;
+  setText('rTravel', t('seconds', r.travel.toFixed(1)), r.travel > settings.travelWarn ? 'bad' : '');
+  const sd = (c) => t('spread', (c.sdPsi * 60).toFixed(2), (c.sdCam * 60).toFixed(2), c.count);
   setText('rSdL', sd(L));
   setText('rSdR', sd(R));
   setText('rPsi', `${L.psi.toFixed(2)}° / ${R.psi.toFixed(2)}°`);
 
   const notes = [];
   if (r.travel > settings.travelWarn) {
-    notes.push(`移動に ${r.travel.toFixed(1)} 秒かかりました(目安 ${settings.travelWarn} 秒以内)。ドリフトが溜まっているかもしれません。`);
+    notes.push(t('noteTravel', r.travel.toFixed(1), settings.travelWarn));
   }
   $('rNotes').replaceChildren(...notes.map((s) => {
     const p = document.createElement('p');
@@ -798,38 +1040,43 @@ function renderResult() {
   }));
 }
 
-function renderDebug(t) {
-  const dt = (t - sensor.hzT) / 1000;
+/** 等幅フォントでの幅(全角は2) */
+const textWidth = (s) => [...s].reduce((w, c) => w + (c.codePointAt(0) >= 0x2e80 ? 2 : 1), 0);
+const padLabel = (s) => s + ' '.repeat(Math.max(1, 10 - textWidth(s)));
+
+function renderDebug(now) {
+  const dt = (now - sensor.hzT) / 1000;
   if (dt >= 1) {
     sensor.hz.ori = sensor.win.ori / dt;
     sensor.hz.mot = sensor.win.mot / dt;
     sensor.win.ori = sensor.win.mot = 0;
-    sensor.hzT = t;
+    sensor.hzT = now;
   }
+  const L = t('dbg');
   const raw = (x) => (x === null || x === undefined ? '–' : String(x));
   const fix = (x, d) => (x === null || x === undefined ? '–' : x.toFixed(d));
   const res = (x) => (x === Infinity ? '–' : x.toPrecision(3));
-  const hasReq = (C) => (C && typeof C.requestPermission === 'function' ? 'あり' : 'なし');
+  const hasReq = (C) => (C && typeof C.requestPermission === 'function' ? L.yes : L.no);
   const o = sensor.ori;
   const r = sensor.rate;
   const n = sensor.n;
-  const still = sensor.stillSince !== null ? ((t - sensor.stillSince) / 1000).toFixed(2) + ' 秒' : '–';
+  const still = sensor.stillSince !== null ? t('seconds', ((now - sensor.stillSince) / 1000).toFixed(2)) : '–';
   const lines = [
-    `状態     ${state}`,
-    `HTTPS    ${window.isSecureContext}  requestPermission 向き=${hasReq(window.DeviceOrientationEvent)} 動き=${hasReq(window.DeviceMotionEvent)}`,
-    `向き     ${sensor.hz.ori.toFixed(1)} Hz  計 ${sensor.total.ori}  null ${sensor.nulls.ori}  absolute=${o ? o.absolute : '–'}`,
-    `  α      ${raw(o && o.alpha)}`,
-    `  β      ${raw(o && o.beta)}`,
-    `  γ      ${raw(o && o.gamma)}`,
-    `  分解能  α ${res(sensor.res.alpha)}  β ${res(sensor.res.beta)}  γ ${res(sensor.res.gamma)}`,
-    `動き     ${sensor.hz.mot.toFixed(1)} Hz  計 ${sensor.total.mot}  null ${sensor.nulls.mot}  interval=${raw(sensor.interval)}`,
-    `  ω      α ${fix(r && r.alpha, 3)}  β ${fix(r && r.beta, 3)}  γ ${fix(r && r.gamma, 3)} °/s`,
-    `  |ω|    ${fix(sensor.rateMag, 3)} °/s(しきい値 ${settings.stillThr})`,
-    `法線 n   ${n ? n.map((v) => v.toFixed(5)).join(', ') : '–'}`,
-    `ψ        ${n ? headingOf(n).toFixed(3) + '°' : '–'}   キャンバー ${n ? camberOf(n).toFixed(3) + '°' : '–'}`,
-    `静止     ${still}  バッファ ${sensor.buf.length} 個`,
+    [L.state, state],
+    ['HTTPS', `${window.isSecureContext}  requestPermission ${L.ori}=${hasReq(window.DeviceOrientationEvent)} ${L.mot}=${hasReq(window.DeviceMotionEvent)}`],
+    [L.ori, `${sensor.hz.ori.toFixed(1)} Hz  ${L.total} ${sensor.total.ori}  null ${sensor.nulls.ori}  absolute=${o ? o.absolute : '–'}`],
+    ['  α', raw(o && o.alpha)],
+    ['  β', raw(o && o.beta)],
+    ['  γ', raw(o && o.gamma)],
+    ['  ' + L.res, `α ${res(sensor.res.alpha)}  β ${res(sensor.res.beta)}  γ ${res(sensor.res.gamma)}`],
+    [L.mot, `${sensor.hz.mot.toFixed(1)} Hz  ${L.total} ${sensor.total.mot}  null ${sensor.nulls.mot}  interval=${raw(sensor.interval)}`],
+    ['  ω', `α ${fix(r && r.alpha, 3)}  β ${fix(r && r.beta, 3)}  γ ${fix(r && r.gamma, 3)} °/s`],
+    ['  |ω|', `${fix(sensor.rateMag, 3)} °/s (${L.threshold} ${settings.stillThr})`],
+    [L.normal, n ? n.map((v) => v.toFixed(5)).join(', ') : '–'],
+    ['ψ', `${n ? headingOf(n).toFixed(3) + '°' : '–'}   ${L.camber} ${n ? camberOf(n).toFixed(3) + '°' : '–'}`],
+    [L.still, `${still}  ${L.buffer(sensor.buf.length)}`],
   ];
-  setText('dbg', lines.join('\n'));
+  setText('dbg', lines.map(([k, v]) => padLabel(k) + v).join('\n'));
 }
 
 $('btnCopy').addEventListener('click', async () => {
@@ -842,26 +1089,45 @@ $('btnCopy').addEventListener('click', async () => {
   ].join('\n');
   try {
     await navigator.clipboard.writeText(text);
-    log('コピーしました');
+    log(t('logCopied'));
   } catch (e) {
-    log('コピーできませんでした: ' + e.message, 'warn');
+    log(t('logCopyFail', e.message), 'warn');
   }
+});
+
+// ---- 言語 ----
+function applyLang() {
+  document.documentElement.lang = lang;
+  for (const el of document.querySelectorAll('[data-i18n]')) el.textContent = t(el.dataset.i18n);
+  $('langSel').value = lang;
+  const now = performance.now();
+  renderStatic();
+  renderResult();
+  renderLive(now);
+  renderDebug(now);
+}
+
+$('langSel').addEventListener('change', () => {
+  const v = $('langSel').value;
+  if (!isLang(v)) return;
+  lang = v;
+  try {
+    localStorage.setItem(LANG_KEY, lang);
+  } catch (e) {
+    log(t('logSaveFail', e.message), 'warn');
+  }
+  applyLang();
 });
 
 // ---- 起動 ----
 fillSettingInputs();
-renderStatic();
-if (!window.isSecureContext) {
-  $('sub').textContent = 'HTTPS で開いていません。センサーは HTTPS でないと使えません。';
-  $('sub').className = 'sub warn';
-}
+applyLang();
 let tick = 0;
 setInterval(() => {
-  const t = performance.now();
-  renderLive(t);
-  if (tick++ % 2 === 0) renderDebug(t);
+  const now = performance.now();
+  renderLive(now);
+  if (tick++ % 2 === 0) renderDebug(now);
 }, 100);
-renderDebug(performance.now());
 </script>
 </body>
 </html>
