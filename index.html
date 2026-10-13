@@ -120,6 +120,14 @@
     color: var(--text);
     text-align: right;
   }
+  .form select {
+    font: inherit;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+  }
   .form .unit { color: var(--muted); font-size: 14px; }
   .form .note { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
   .form button { margin-top: 8px; width: 100%; }
@@ -208,8 +216,13 @@
         <span><input id="setStillTol" type="number" inputmode="decimal" step="0.01"> <span class="unit" data-i18n="unitStillTol">° 以内</span></span></label>
       <label><span data-i18n="setStillSec">静止を続ける時間</span>
         <span><input id="setStillSec" type="number" inputmode="decimal" step="0.1"> <span class="unit" data-i18n="unitSec">秒</span></span></label>
-      <label><span data-i18n="setMaxTilt">垂直からの傾きの許容</span>
+      <label><span data-i18n="setMaxTilt">傾きの許容(棒は水平、面は垂直から)</span>
         <span><input id="setMaxTilt" type="number" inputmode="decimal" step="1"> <span class="unit">°</span></span></label>
+      <label><span data-i18n="setToeEdge">トー:棒に沿わせる辺</span>
+        <span><select id="setToeEdge">
+          <option value="long" data-i18n="edgeLong">長い辺</option>
+          <option value="short" data-i18n="edgeShort">短い辺</option>
+        </select></span></label>
       <label><span data-i18n="setTravelWarn">トー:移動時間の警告</span>
         <span><input id="setTravelWarn" type="number" inputmode="decimal" step="1"> <span class="unit" data-i18n="unitSec">秒</span></span></label>
       <label><span data-i18n="setRim">トー:リム径(空欄なら mm 換算なし)</span>
@@ -268,12 +281,18 @@ function normalFromEuler(alpha, beta, gamma) {
 }
 
 /**
- * 画面の右(デバイスの x 軸)と上(y 軸)の世界座標の z 成分。R の1列目と2列目の z。
- * 重力が基準なので、向き(α)の基準が変わっても変わらない。治具を上下逆にしたかを見分けるのに使う。
+ * 画面の右(デバイスの x 軸。縦持ちで短い辺の向き)と上(y 軸。長い辺の向き)の世界座標。R の1列目と2列目。
+ * トーは、棒に沿わせた辺の向きで測る(棒を軸にあおっても、平らに置いても変わらない)。
  */
-function axesZ(beta, gamma) {
-  const b = beta * DEG, g = gamma * DEG;
-  return [-Math.cos(b) * Math.sin(g), Math.sin(b)];
+function axesFromEuler(alpha, beta, gamma) {
+  const a = alpha * DEG, b = beta * DEG, g = gamma * DEG;
+  const sA = Math.sin(a), cA = Math.cos(a);
+  const sB = Math.sin(b), cB = Math.cos(b);
+  const sG = Math.sin(g), cG = Math.cos(g);
+  return [
+    [cA * cG - sA * sB * sG, cG * sA + cA * sB * sG, -cB * sG],
+    [-cB * sA, cA * cB, sB],
+  ];
 }
 
 /** 水平方向の向き ψ(上から見て反時計回り、度) */
@@ -325,7 +344,8 @@ function spreadOf(ns, mean) {
 }
 
 /**
- * 治具を上下逆にしたか。1回目に縦に近かった軸(画面の右か上)の z 成分の符号が逆になっていれば上下逆。
+ * 治具を上下逆にしたか。画面の右と上の z 成分([x.z, y.z])で見る。
+ * 1回目に縦に近かった軸の z 成分の符号が逆になっていれば上下逆。重力が基準なので、向き(α)の基準が変わっても狂わない。
  * 当てる面はほぼ垂直なので、縦に近いほうの軸の |z| は 0.7 以上になる。
  */
 function isFlipped(refZ, nowZ) {
@@ -353,7 +373,7 @@ const I18N = {
     resTravel: '移動時間',
     resSdL: 'ばらつき 左',
     resSdR: 'ばらつき 右',
-    resPsi: '向き ψ 左 / 右',
+    resPsi: '棒の向き 左 / 右',
     resCam: 'キャンバー(ネガが負)',
     resCam1: '1回目',
     resCam2: '2回目(上下逆)',
@@ -365,7 +385,10 @@ const I18N = {
     unitStillTol: '° 以内',
     setStillSec: '静止を続ける時間',
     unitSec: '秒',
-    setMaxTilt: '垂直からの傾きの許容',
+    setMaxTilt: '傾きの許容(棒は水平、面は垂直から)',
+    setToeEdge: 'トー:棒に沿わせる辺',
+    edgeLong: '長い辺',
+    edgeShort: '短い辺',
     setTravelWarn: 'トー:移動時間の警告',
     setRim: 'トー:リム径(空欄なら mm 換算なし)',
     unitInch: 'インチ',
@@ -374,9 +397,9 @@ const I18N = {
     btnCopy: '表示とログをコピー',
     help: '使い方',
     help1: 'トーとキャンバーは別々に測ります。上で選んでから「センサー開始」を押し、センサーの使用を許可します。',
-    help2: 'iPhone は治具に固定し、背面を当てて画面を車の外側に向けます。止めておくとピッと鳴って記録されます。ケースは外すか、毎回同じ状態にします。',
-    help3: 'トー:リムの前と後ろの2点に当たる横向きの棒を、水平にしてリムに押し当てます(傾けて立てかけると誤差が出ます)。左前輪で記録したら、棒を裏返さずに車の前を回り、右前輪に当てます。移動は手早く(目安 15 秒以内)。',
-    help4: 'キャンバー:リムの上と下の2点に当たる縦向きの棒を当てます。1輪ずつ測れます。棒を上下逆にしてもう1回測ると、iPhone の付け方の傾きが消えます。床が平らな場所で測ります。',
+    help2: 'iPhone は治具に固定します。止めておくとピッと鳴って記録されます。ケースは外すか、毎回同じ状態にします。',
+    help3: 'トー:リムの前と後ろの2点に当たる横向きの棒に、iPhone の長い辺を沿わせて固定します(設定で短い辺にも変えられます)。平らに置いても、立てても測れます。棒はなるべく水平にしてリムに押し当てます。左前輪で記録したら、棒を裏返さずに車の前を回り、右前輪に当てます。移動は手早く(目安 15 秒以内)。',
+    help4: 'キャンバー:リムの上と下の2点に当たる縦向きの棒に iPhone の背面を当て、画面を車の外側に向けます。1輪ずつ測れます。棒を上下逆にしてもう1回測ると、iPhone の付け方の傾きが消えます。床が平らな場所で測ります。',
 
     steps: {
       idle: ['準備', '「センサー開始」を押してください'],
@@ -393,7 +416,8 @@ const I18N = {
     denied: 'センサーの使用が許可されませんでした。タブを閉じて開き直してから、もう一度「センサー開始」を押してください。',
     waitingSensor: 'センサーの値を待っています…',
     stillProgress: (s, max) => `静止 ${s} / ${max} 秒`,
-    placeHint: '背面を当て、画面を外に向けて止めてください',
+    placeHintToe: '棒をリムに押し当てて止めてください',
+    placeHintCam: '背面を当て、画面を外に向けて止めてください',
     toeDoneHint: '次を測るときは、左前輪に戻ってから「もう一度測る」を押してください',
     camDoneHint: '棒を上下逆にしてもう1回測ると、付け方の傾きが消えます',
     camDoneFHint: 'ほかの輪を測るときは「もう一度測る」を押してください',
@@ -402,6 +426,7 @@ const I18N = {
     facingStill: (off) => `右前輪の向きではありません(左前輪の反対から ${off}° ずれ)`,
     flipMove: '棒を上下逆にして、同じ輪に当ててください',
     guardTilt: (deg, max) => `垂直から ${deg}° 傾いています(許容 ${max}°)`,
+    guardBarTilt: (deg, max) => `棒に沿わせた辺が水平から ${deg}° 傾いています(許容 ${max}°)`,
     guardFew: '向きの値が足りません',
     noticeHidden: '移動中に画面が隠れたので、左前輪からやり直します',
     toeIn: 'トーイン',
@@ -435,7 +460,8 @@ const I18N = {
     logNoOri: '向き(deviceorientation)の値が届きません。測定できません',
     logNoMot: '動き(devicemotion)の値が届きません(デバッグの表示にだけ使っています)',
     logMode: (m) => `モード: ${m}`,
-    capDesc: (psi, cam, sh, sv, n) => `ψ=${psi}° キャンバー=${cam}° σ水平=${sh}′ σ縦=${sv}′ (${n}個)`,
+    capDescToe: (u, tilt, sh, n) => `棒の向き=${u}° 棒の傾き=${tilt}° σ水平=${sh}′ (${n}個)`,
+    capDescCam: (cam, sv, n) => `キャンバー=${cam}° σ縦=${sv}′ (${n}個)`,
     logCapL: (d) => `左を記録: ${d}`,
     logCapR: (d) => `右を記録: ${d}`,
     logResult: (toe, s) => `結果: トータルトー=${toe}° 移動=${s}秒`,
@@ -450,7 +476,7 @@ const I18N = {
 
     dbg: {
       state: '状態', ori: '向き', mot: '動き', res: '分解能', normal: '法線 n', still: '静止',
-      total: '計', yes: 'あり', no: 'なし', camber: 'キャンバー', wobble: 'ゆれ', tol: '許容',
+      total: '計', yes: 'あり', no: 'なし', camber: 'キャンバー', wobble: 'ゆれ', tol: '許容', bar: '棒の向き',
       buffer: (n) => `バッファ ${n} 個`,
     },
   },
@@ -472,7 +498,7 @@ const I18N = {
     resTravel: 'Travel time',
     resSdL: 'Spread, left',
     resSdR: 'Spread, right',
-    resPsi: 'Heading ψ, left / right',
+    resPsi: 'Bar heading, left / right',
     resCam: 'Camber (negative = top in)',
     resCam1: '1st',
     resCam2: '2nd (flipped)',
@@ -484,7 +510,10 @@ const I18N = {
     unitStillTol: '°',
     setStillSec: 'Hold still for',
     unitSec: 's',
-    setMaxTilt: 'Allowed tilt from vertical',
+    setMaxTilt: 'Allowed tilt (bar from level, face from vertical)',
+    setToeEdge: 'Toe: iPhone edge along the bar',
+    edgeLong: 'Long edge',
+    edgeShort: 'Short edge',
     setTravelWarn: 'Toe: warn when travel takes over',
     setRim: 'Toe: rim diameter (blank: no mm value)',
     unitInch: 'in',
@@ -493,9 +522,9 @@ const I18N = {
     btnCopy: 'Copy panel and log',
     help: 'How to use',
     help1: 'Toe and camber are measured separately. Choose one at the top, tap “Start sensors” and allow access to motion sensors.',
-    help2: 'Fix the iPhone to a jig, put its back against the wheel with the screen facing away from the car, and hold still. It beeps when the reading is recorded. Remove the case, or keep it the same every time.',
-    help3: 'Toe: use a horizontal bar that touches the rim lip at the front and the rear. Keep it level and press it against the rim (leaning it causes errors). After the front-left wheel, walk around the front of the car without turning the bar over, and place it on the front-right wheel. Move quickly (within about 15 seconds).',
-    help4: 'Camber: use a vertical bar that touches the rim lip at the top and the bottom. Measure one wheel at a time. Measuring again with the bar upside down cancels out how the iPhone is mounted. Measure on level ground.',
+    help2: 'Fix the iPhone to a jig and hold still. It beeps when the reading is recorded. Remove the case, or keep it the same every time.',
+    help3: 'Toe: fix the iPhone with its long edge along a horizontal bar that touches the rim lip at the front and the rear (you can switch to the short edge in Settings). It can lie flat or stand up. Keep the bar as level as you can and press it against the rim. After the front-left wheel, walk around the front of the car without turning the bar over, and place it on the front-right wheel. Move quickly (within about 15 seconds).',
+    help4: 'Camber: put the back of the iPhone against a vertical bar that touches the rim lip at the top and the bottom, with the screen facing away from the car. Measure one wheel at a time. Measuring again with the bar upside down cancels out how the iPhone is mounted. Measure on level ground.',
 
     steps: {
       idle: ['Ready', 'Tap “Start sensors”'],
@@ -512,7 +541,8 @@ const I18N = {
     denied: 'Sensor access was not allowed. Close the tab, open the page again, and tap “Start sensors” again.',
     waitingSensor: 'Waiting for sensor values…',
     stillProgress: (s, max) => `Still ${s} / ${max} s`,
-    placeHint: 'Put the back against the wheel, screen facing out, and hold still',
+    placeHintToe: 'Press the bar against the rim and hold still',
+    placeHintCam: 'Put the back against the wheel, screen facing out, and hold still',
     toeDoneHint: 'To measure again, go back to the front-left wheel and tap “Measure again”',
     camDoneHint: 'Measuring again with the bar upside down cancels out the mount tilt',
     camDoneFHint: 'To measure another wheel, tap “Measure again”',
@@ -521,6 +551,7 @@ const I18N = {
     facingStill: (off) => `Not facing the front-right wheel (${off}° off from opposite the front left)`,
     flipMove: 'Turn the bar upside down and place it on the same wheel',
     guardTilt: (deg, max) => `Tilted ${deg}° from vertical (limit ${max}°)`,
+    guardBarTilt: (deg, max) => `The edge along the bar is tilted ${deg}° from level (limit ${max}°)`,
     guardFew: 'Not enough orientation values',
     noticeHidden: 'The screen was hidden while moving, so start again from the front-left wheel',
     toeIn: 'toe-in',
@@ -554,7 +585,8 @@ const I18N = {
     logNoOri: 'No orientation (deviceorientation) values are arriving, so nothing can be measured',
     logNoMot: 'No motion (devicemotion) values are arriving (only used for the debug panel)',
     logMode: (m) => `Mode: ${m}`,
-    capDesc: (psi, cam, sh, sv, n) => `ψ=${psi}° camber=${cam}° σh=${sh}′ σv=${sv}′ (${n} samples)`,
+    capDescToe: (u, tilt, sh, n) => `bar heading=${u}° bar tilt=${tilt}° σh=${sh}′ (${n} samples)`,
+    capDescCam: (cam, sv, n) => `camber=${cam}° σv=${sv}′ (${n} samples)`,
     logCapL: (d) => `Recorded left: ${d}`,
     logCapR: (d) => `Recorded right: ${d}`,
     logResult: (toe, s) => `Result: total toe=${toe}° travel=${s} s`,
@@ -569,7 +601,7 @@ const I18N = {
 
     dbg: {
       state: 'state', ori: 'orient', mot: 'motion', res: 'resol.', normal: 'normal n', still: 'still',
-      total: 'total', yes: 'yes', no: 'no', camber: 'camber', wobble: 'wobble', tol: 'limit',
+      total: 'total', yes: 'yes', no: 'no', camber: 'camber', wobble: 'wobble', tol: 'limit', bar: 'bar',
       buffer: (n) => `buffer ${n} samples`,
     },
   },
@@ -633,9 +665,10 @@ window.addEventListener('unhandledrejection', (e) => log(t('logPromiseError', er
 
 // ---- 設定 ----
 const SETTINGS_KEY = 'reckon.settings.v1';
-const DEFAULTS = { stillTol: 0.15, stillSec: 1.5, maxTilt: 15, travelWarn: 15, rimInch: null };
+const DEFAULTS = { stillTol: 0.15, stillSec: 1.5, maxTilt: 15, travelWarn: 15, rimInch: null, toeEdge: 'long' };
 const LIMITS = { stillTol: [0.01, 2], stillSec: [0.3, 8], maxTilt: [1, 45], travelWarn: [1, 300], rimInch: [8, 30] };
 const SETTING_INPUTS = { stillTol: 'setStillTol', stillSec: 'setStillSec', maxTilt: 'setMaxTilt', travelWarn: 'setTravelWarn', rimInch: 'setRim' };
+const isEdge = (v) => v === 'long' || v === 'short';
 
 const inRange = (k, v) => typeof v === 'number' && Number.isFinite(v) && v >= LIMITS[k][0] && v <= LIMITS[k][1];
 
@@ -643,9 +676,10 @@ function loadSettings() {
   const s = { ...DEFAULTS };
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
-    for (const k of Object.keys(DEFAULTS)) {
+    for (const k of Object.keys(LIMITS)) {
       if (inRange(k, saved[k])) s[k] = saved[k];
     }
+    if (isEdge(saved.toeEdge)) s.toeEdge = saved.toeEdge;
   } catch (e) {
     // 読めなければ初期値のまま
   }
@@ -668,7 +702,17 @@ function fillSettingInputs() {
     $(id).min = LIMITS[k][0];
     $(id).max = LIMITS[k][1];
   }
+  $('setToeEdge').value = settings.toeEdge;
 }
+
+$('setToeEdge').addEventListener('change', () => {
+  const v = $('setToeEdge').value;
+  if (isEdge(v)) settings.toeEdge = v;
+  fillSettingInputs();
+  saveSettings();
+  // 辺を変えると棒の向きの基準が変わるので、測りかけのトーは捨てる
+  if (sensor.on && mode === 'toe') setState('waitL');
+});
 
 for (const [k, id] of Object.entries(SETTING_INPUTS)) {
   $(id).addEventListener('change', () => {
@@ -773,8 +817,8 @@ const sensor = {
   on: false,
   ori: null,          // 最後の deviceorientation の生値
   n: null,            // 最後の法線
-  axz: null,          // 最後の画面の右・上の z 成分
-  buf: [],            // 直近の { t, n, axz }
+  ax: null,           // 最後の画面の右と上の向き [x, y]
+  buf: [],            // 直近の { t, n, ax }
   stillSince: null,   // 静止が始まった時刻(静止していなければ null)
   wobble: null,       // 最後の向きと、静止区間の平均とのなす角(度)
   lastOri: null,      // 最後の deviceorientation の時刻
@@ -800,17 +844,28 @@ function recentSamples(from) {
  * 静止の判定。最後の向きが、静止区間(長くても直近の「静止を続ける時間」)の平均から許容より離れたら、
  * そこから数え直す。手の震えは速いが向きはほとんど変わらないので通し、ゆっくり流れる動きは平均から離れるので止める。
  */
-function updateStill(now, n) {
+function updateStill(now, n, x) {
   if (sensor.stillSince === null) {
     sensor.stillSince = now;
     sensor.wobble = 0;
     return;
   }
   const win = recentSamples(Math.max(sensor.stillSince, now - settings.stillSec * 1000));
-  const mean = meanNormal(win.map((s) => s.n));
-  sensor.wobble = mean ? angleBetween(n, mean) : 0;
+  const meanN = meanNormal(win.map((s) => s.n));
+  const meanX = meanNormal(win.map((s) => s.ax[0]));
+  // 法線だけだと、平らに置いたときの水平の回転が見えない。画面の右の向きも見れば、どの向きの回転も拾える
+  sensor.wobble = meanN && meanX ? Math.max(angleBetween(n, meanN), angleBetween(x, meanX)) : 0;
   if (sensor.wobble > settings.stillTol) sensor.stillSince = now;
 }
+
+/** トーで使う、棒に沿わせた辺の向き(設定で長い辺か短い辺) */
+const barAxis = (ax) => (settings.toeEdge === 'long' ? ax[1] : ax[0]);
+/** 画面の右と上の z 成分(上下逆の判定に使う) */
+const axesZ = (ax) => [ax[0][2], ax[1][2]];
+/** 棒に沿わせた辺 a の、水平からの傾き(度) */
+const tiltOf = (a) => Math.asin(Math.min(1, Math.abs(a[2]))) / DEG;
+/** 今の向きを、記録してよいかの判定に使う形にする(u・tilt は棒の向きと傾き、z は上下逆の判定用) */
+const poseOf = (ax) => ({ u: headingOf(barAxis(ax)), tilt: tiltOf(barAxis(ax)), z: axesZ(ax) });
 
 function onOrientation(e) {
   if (e.alpha == null || e.beta == null || e.gamma == null) {
@@ -827,7 +882,7 @@ function onOrientation(e) {
   }
   sensor.ori = { alpha: e.alpha, beta: e.beta, gamma: e.gamma, absolute: e.absolute };
   sensor.n = normalFromEuler(e.alpha, e.beta, e.gamma);
-  sensor.axz = axesZ(e.beta, e.gamma);
+  sensor.ax = axesFromEuler(e.alpha, e.beta, e.gamma);
   sensor.total.ori++;
   sensor.win.ori++;
 
@@ -838,11 +893,11 @@ function onOrientation(e) {
   }
   sensor.lastOri = now;
 
-  sensor.buf.push({ t: now, n: sensor.n, axz: sensor.axz });
+  sensor.buf.push({ t: now, n: sensor.n, ax: sensor.ax });
   const keep = Math.max(10, settings.stillSec + 3) * 1000;
   while (sensor.buf.length && sensor.buf[0].t < now - keep) sensor.buf.shift();
 
-  updateStill(now, sensor.n);
+  updateStill(now, sensor.n, sensor.ax[0]);
   tryCapture(now);
 }
 
@@ -970,23 +1025,28 @@ function setMode(m) {
 
 /**
  * 今の向きで記録してはいけないなら、その理由を返す(move は動いている間、still は止まっているのに記録しないときの文言)。
- * 右前輪は左前輪のほぼ反対を向く。2回目以降の左前輪は、前回の右前輪の向きのままなら押し間違い。
- * キャンバーの2回目は、1回目と上下逆になっていること。
+ * トーは棒の向きで見る。棒は車の前を回って持っていくので、右前輪では左前輪のほぼ反対を向く。
+ * 2回目以降の左前輪は、前回の右前輪の向きのままなら押し間違い。キャンバーの2回目は、1回目と上下逆になっていること。
  */
-function facingProblem(n, axz) {
-  const psi = headingOf(n);
-  if (state === 'waitL' && measure.prevR && Math.abs(wrap180(psi - measure.prevR.psi)) < FACING_TOL) {
+function facingProblem(pose) {
+  // 棒に沿わせた辺が縦に近いと、その水平の向き(u)は意味がない。向きの確認より先に止める
+  if ((state === 'waitL' || state === 'waitR') && pose.tilt > settings.maxTilt) {
+    const msg = t('guardBarTilt', pose.tilt.toFixed(0), settings.maxTilt);
+    // 右前輪へ歩いている間は、持ち方で傾いていて当然なので、移動の案内のままにする
+    return { kind: 'barTilt', move: state === 'waitR' ? t('facingMove') : msg, still: msg };
+  }
+  if (state === 'waitL' && measure.prevR && Math.abs(wrap180(pose.u - measure.prevR.u)) < FACING_TOL) {
     const msg = t('facingPrevR');
     return { kind: 'prevR', move: msg, still: msg };
   }
   if (state === 'waitR') {
-    const off = Math.abs(wrap180(psi - measure.L.psi - 180));
+    const off = Math.abs(wrap180(pose.u - measure.L.u - 180));
     if (off > FACING_TOL) {
       // ずれの大きさは、ドリフトで外れたときの手がかり
       return { kind: 'notOpposite', move: t('facingMove'), still: t('facingStill', off.toFixed(0)) };
     }
   }
-  if (state === 'waitCF' && axz && !isFlipped(measure.C1.axz, axz)) {
+  if (state === 'waitCF' && !isFlipped(measure.C1.z, pose.z)) {
     const msg = t('flipMove');
     return { kind: 'notFlipped', move: msg, still: msg };
   }
@@ -1003,14 +1063,57 @@ function tryCapture(now) {
     guard = t('guardFew');
     return;
   }
+  if (mode === 'toe') captureToe(now, samples);
+  else captureCamber(now, samples);
+}
+
+/**
+ * トー:棒に沿わせた辺の向きの平均を記録する。棒を軸にあおっても(平らでも立てても)辺の向きは変わらないので、
+ * 法線の向きで測るより、当て方のくせに強い。
+ */
+function captureToe(now, samples) {
+  const bars = samples.map((s) => barAxis(s.ax));
+  const a = meanNormal(bars);
+  if (!a) return;
+  const u = headingOf(a);
+  const tilt = tiltOf(a);
+
+  const fp = facingProblem({ u, tilt, z: null });
+  if (fp) {
+    guard = fp.still;
+    return;
+  }
+
+  const sdU = stdev(bars.map((b) => wrap180(headingOf(b) - u)));
+  const cap = { t: now, u, tilt, sdU, count: samples.length };
+  const desc = t('capDescToe', u.toFixed(3), tilt.toFixed(2), (sdU * 60).toFixed(2), samples.length);
+  if (state === 'waitL') {
+    measure.L = cap;
+    log(t('logCapL', desc));
+    signal(1);
+    setState('waitR');
+  } else if (state === 'waitR') {
+    measure.R = cap;
+    const L = measure.L;
+    // 棒は車の前を回って持っていくので、左右で反対を向く。法線のときと同じ式で、
+    // 棒(辺)が車の前後どちらを向いていてもトータルトーになる(uR − uL − 180° = 右の前進方向 − 左の前進方向)
+    measure.result = { toe: totalToe(L.u, cap.u), travel: (cap.t - L.t) / 1000 };
+    log(t('logCapR', desc));
+    log(t('logResult', measure.result.toe.toFixed(3), measure.result.travel.toFixed(1)));
+    signal(2);
+    setState('toeDone');
+  }
+}
+
+/** キャンバー:法線の平均から出す。重力が基準なのでドリフトはない */
+function captureCamber(now, samples) {
   const ns = samples.map((s) => s.n);
   const mean = meanNormal(ns);
   if (!mean) return;
-  const axz = [0, 1].map((k) => samples.reduce((s, x) => s + x.axz[k], 0) / samples.length);
+  const z = [0, 1].map((k) => samples.reduce((acc, s) => acc + s.ax[k][2], 0) / samples.length);
   const cam = camberOf(mean);
-  const psi = headingOf(mean);
 
-  const fp = facingProblem(mean, axz);
+  const fp = facingProblem({ u: null, tilt: 0, z });
   if (fp) {
     guard = fp.still;
     return;
@@ -1021,22 +1124,9 @@ function tryCapture(now) {
   }
 
   const sp = spreadOf(ns, mean);
-  const cap = { t: now, n: mean, axz, psi, camber: cam, sdPsi: sp.psi, sdCam: sp.cam, count: samples.length };
-  const desc = t('capDesc', psi.toFixed(3), cam.toFixed(3), (sp.psi * 60).toFixed(2), (sp.cam * 60).toFixed(2), samples.length);
-  if (state === 'waitL') {
-    measure.L = cap;
-    log(t('logCapL', desc));
-    signal(1);
-    setState('waitR');
-  } else if (state === 'waitR') {
-    measure.R = cap;
-    const L = measure.L;
-    measure.result = { toe: totalToe(L.psi, cap.psi), travel: (cap.t - L.t) / 1000 };
-    log(t('logCapR', desc));
-    log(t('logResult', measure.result.toe.toFixed(3), measure.result.travel.toFixed(1)));
-    signal(2);
-    setState('toeDone');
-  } else if (state === 'waitC') {
+  const cap = { t: now, n: mean, z, camber: cam, sdCam: sp.cam, count: samples.length };
+  const desc = t('capDescCam', cam.toFixed(3), (sp.cam * 60).toFixed(2), samples.length);
+  if (state === 'waitC') {
     measure.C1 = cap;
     log(t('logCapC', desc));
     signal(1);
@@ -1130,7 +1220,7 @@ function renderLive(now) {
   const waiting = isWaiting(state);
   const still = sensor.stillSince !== null ? Math.max(0, (now - sensor.stillSince) / 1000) : 0;
   const n = sensor.n;
-  const fp = waiting && n ? facingProblem(n, sensor.axz) : null;
+  const fp = waiting && sensor.ax ? facingProblem(poseOf(sensor.ax)) : null;
   const facing = fp ? fp.move : '';
   $('btnForceL').hidden = !(fp && fp.kind === 'prevR');
 
@@ -1154,7 +1244,7 @@ function renderLive(now) {
     sub = t(notice);
     warn = true;
   } else if (waiting) {
-    sub = t('placeHint');
+    sub = t(mode === 'toe' ? 'placeHintToe' : 'placeHintCam');
   } else {
     sub = t({ toeDone: 'toeDoneHint', camDone: 'camDoneHint', camDoneF: 'camDoneFHint' }[state]);
   }
@@ -1176,8 +1266,8 @@ function renderLive(now) {
   setText('liveTravel', travel === null ? '–' : t('seconds', travel.toFixed(1)), travel !== null && travel > settings.travelWarn ? 'bad' : '');
 
   let toe = '–';
-  if (state === 'waitR' && n && !facing) {
-    toe = fmtDeg(totalToe(measure.L.psi, headingOf(n)), 2);
+  if (state === 'waitR' && sensor.ax && !facing) {
+    toe = fmtDeg(totalToe(measure.L.u, poseOf(sensor.ax).u), 2);
   } else if (state === 'toeDone') {
     toe = fmtDeg(r.toe, 2);
   }
@@ -1205,10 +1295,10 @@ function renderToeResult() {
   }
   setText('rToeSub', parts.join(t('sep')));
   setText('rTravel', t('seconds', r.travel.toFixed(1)), r.travel > settings.travelWarn ? 'bad' : '');
-  const sd = (c) => t('spreadH', (c.sdPsi * 60).toFixed(2), c.count);
+  const sd = (c) => t('spreadH', (c.sdU * 60).toFixed(2), c.count);
   setText('rSdL', sd(L));
   setText('rSdR', sd(R));
-  setText('rPsi', `${L.psi.toFixed(2)}° / ${R.psi.toFixed(2)}°`);
+  setText('rPsi', `${L.u.toFixed(2)}° / ${R.u.toFixed(2)}°`);
 
   const notes = [];
   if (r.travel > settings.travelWarn) {
@@ -1273,6 +1363,7 @@ function renderDebug(now) {
     ['  |ω|', `${fix(sensor.rateMag, 3)} °/s`],
     [L.normal, n ? n.map((v) => v.toFixed(5)).join(', ') : '–'],
     ['ψ', `${n ? headingOf(n).toFixed(3) + '°' : '–'}   ${L.camber} ${n ? camberOf(n).toFixed(3) + '°' : '–'}`],
+    [L.bar, sensor.ax ? `${poseOf(sensor.ax).u.toFixed(3)}° (${settings.toeEdge})` : '–'],
     [L.wobble, `${fix(sensor.wobble, 3)}° (${L.tol} ${settings.stillTol}°)`],
     [L.still, `${still}  ${L.buffer(sensor.buf.length)}`],
   ];

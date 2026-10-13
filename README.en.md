@@ -17,16 +17,17 @@ are described in [CLAUDE.md](CLAUDE.md) (in Japanese).
 
 Toe and camber are measured separately. Choose one at the top of the page, tap “Start sensors” and allow access to motion sensors.
 
-Fix the iPhone to a jig that rests on the rim lip. Put its back against the wheel with the screen facing away from the car,
-and hold still: it beeps when the reading is recorded. Remove the case, or keep it the same every time.
+Fix the iPhone to a jig that rests on the rim lip and hold still: it beeps when the reading is recorded.
+Remove the case, or keep it the same every time.
 
 **Toe**
-1. Use a horizontal bar that touches the rim lip at the front and the rear. Keep it level and press it against the front-left wheel (leaning it causes errors).
+1. Fix the iPhone with its long edge along a horizontal bar that touches the rim lip at the front and the rear (you can switch to the short edge in Settings).
+   It can lie flat or stand up. Keep the bar as level as you can and press it against the front-left wheel.
 2. Once recorded, walk around the front of the car without turning the bar over, and place it on the front-right wheel the same way. It beeps twice and shows the result.
 3. Move quickly (within about 15 seconds). The longer the walk takes, the more drift builds up.
 
 **Camber**
-1. Use a vertical bar that touches the rim lip at the top and the bottom, and place it on the wheel you want to measure. One wheel at a time is fine.
+1. Put the back of the iPhone against a vertical bar that touches the rim lip at the top and the bottom, with the screen facing away from the car, and place it on the wheel you want to measure. One wheel at a time is fine.
 2. Optionally, measure again with the bar upside down. This cancels out how the iPhone is mounted.
 3. The slope of the ground adds directly to the result, so measure on level ground.
 
