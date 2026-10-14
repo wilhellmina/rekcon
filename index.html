@@ -968,6 +968,8 @@ async function startSensorsInner() {
 // キャンバー: idle → waitC → camDone →(上下逆にするなら)waitCF → camDoneF
 const FACING_TOL = 45; // 右前輪は左前輪のほぼ反対を向くはず。この角度より外れていたら記録しない
 const MAX_GAP_MS = 300; // 向きの値がこれより長く途切れたら、静止を数え直す
+// 静止がこれより短い間は、静止の秒数ではなく案内を出す。動いている間も静止は数え直し続けるので、秒数は 0 にならない
+const STILL_SHOW_SEC = 0.2;
 const MODE_KEY = 'reckon.mode.v1';
 
 function loadMode() {
@@ -1229,6 +1231,7 @@ function renderLive(now) {
   if (isDone(state)) progress = 1;
   $('barFill').style.width = progress * 100 + '%';
 
+  const stillShown = waiting && still >= STILL_SHOW_SEC;
   let sub;
   let warn = false;
   if (waiting && sensor.total.ori === 0) {
@@ -1236,13 +1239,14 @@ function renderLive(now) {
   } else if (waiting && guard) {
     sub = guard;
     warn = true;
-  } else if (facing) {
-    sub = facing;
-  } else if (waiting && still > 0) {
-    sub = t('stillProgress', still.toFixed(1), settings.stillSec);
-  } else if (notice) {
+  } else if (notice && !stillShown) {
+    // やり直しになった理由は、移動の案内より先に出す(止まれば静止の秒数に替わる)
     sub = t(notice);
     warn = true;
+  } else if (facing) {
+    sub = facing;
+  } else if (stillShown) {
+    sub = t('stillProgress', still.toFixed(1), settings.stillSec);
   } else if (waiting) {
     sub = t(mode === 'toe' ? 'placeHintToe' : 'placeHintCam');
   } else {
